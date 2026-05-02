@@ -1,0 +1,80 @@
+{
+  "realm": "demo",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Realm-level admin" },
+      { "name": "user", "description": "Realm-level standard user" }
+    ],
+    "client": {
+      "demo-app": [
+        { "name": "editor", "description": "Can edit resources in demo-app" },
+        { "name": "viewer", "description": "Read-only in demo-app" }
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "demo-app",
+      "name": "Demo SPA",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "http://localhost:3000",
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000", "+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "fullScopeAllowed": true,
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"]
+    }
+  ],
+  "users": [
+    {
+      "username": "ricardo",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ricardo",
+      "lastName": "Demo",
+      "email": "ricardo@example.com",
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["admin", "user"],
+      "clientRoles": {
+        "demo-app": ["editor", "viewer"]
+      }
+    },
+    {
+      "username": "viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Read",
+      "lastName": "Only",
+      "email": "viewer@example.com",
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["user"],
+      "clientRoles": {
+        "demo-app": ["viewer"]
+      }
+    }
+  ]
+}

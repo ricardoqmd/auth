@@ -1,0 +1,40 @@
+{
+  "name": "ricardoqmd-auth-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo for @ricardoqmd auth packages: reusable Keycloak authentication for Next.js with XState",
+  "author": "ricardoqmd",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ricardoqmd/auth.git"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" build",
+    "dev": "pnpm -r --parallel --filter \"./packages/*\" dev",
+    "demo": "pnpm --filter @ricardoqmd-demo/app dev",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r exec rm -rf dist node_modules .next .turbo",
+    "kc:up": "docker compose -f docker/docker-compose.yml up -d",
+    "kc:down": "docker compose -f docker/docker-compose.yml down",
+    "kc:logs": "docker compose -f docker/docker-compose.yml logs -f keycloak",
+    "kc:reset": "docker compose -f docker/docker-compose.yml down -v && pnpm kc:up",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.9",
+    "@types/node": "^22.9.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  },
+  "engines": {
+    "node": ">=18.18.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.12.3"
+}

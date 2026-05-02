@@ -1,0 +1,51 @@
+{
+  "name": "@ricardoqmd/auth-keycloak",
+  "version": "0.0.1",
+  "description": "Keycloak adapter for @ricardoqmd/auth-core — implements the AuthProvider contract using keycloak-js",
+  "keywords": ["auth", "keycloak", "oidc", "sso", "adapter"],
+  "author": "ricardoqmd",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ricardoqmd/auth.git",
+    "directory": "packages/auth-keycloak"
+  },
+  "homepage": "https://github.com/ricardoqmd/auth/tree/main/packages/auth-keycloak",
+  "bugs": "https://github.com/ricardoqmd/auth/issues",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo"
+  },
+  "dependencies": {
+    "@ricardoqmd/auth-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "keycloak-js": ">=26.0.0 <28.0.0"
+  },
+  "devDependencies": {
+    "keycloak-js": "^26.6.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
