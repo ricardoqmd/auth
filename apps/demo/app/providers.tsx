@@ -29,6 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <pre>{error.message}</pre>
         </div>
       )}
+      renderOnUnauthenticated={false}
     >
       {children}
     </AuthProvider>
