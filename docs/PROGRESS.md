@@ -5,6 +5,164 @@
 
 ---
 
+## 2026-05-06 (Session: end-to-end testing — two runtime bugs caught)
+
+### Milestone: demo app runs end-to-end against local Keycloak
+
+#### What was done
+- Ran the full stack: Keycloak 26.6 + Next.js demo app against local Docker instance.
+- Caught and fixed two bugs that only manifested at runtime (build and typecheck
+  passed cleanly).
+- Confirmed successful login flow with `ricardo` user, RBAC checks, and logout.
+
+#### Bugs diagnosed and fixed
+
+**Bug 1 — auth-nextjs: infinite re-renders (`Too many re-renders`)**
+
+*Symptom:* App rendered, Keycloak login page appeared, user logged in, app crashed
+with "React limits the number of renders to prevent an infinite loop."
+
+*Root cause:* `createAuthMachine(provider)` was called inline in every render of
+`AuthProvider`. Internally, `@xstate/react` v4's `useIdleActorRef` compares the
+machine's `config` property by reference on every render:
+
+```javascript
+// inside useIdleActorRef (@xstate/react v4)
+if (logic.config !== currentConfig) {
+  setCurrent([logic.config, newActorRef]);  // setState during render!
+}
+```
+
+Each call to `createAuthMachine` produces a new object with a new `config`
+reference → the condition is always `true` → `setCurrent` is called during render
+→ React triggers another render → another new machine → infinite loop.
+
+*Fix:* Wrap `createAuthMachine(provider)` in `useMemo` keyed on `provider`.
+Since `provider` is created at module level (stable reference), the machine is
+created exactly once per component lifecycle.
+
+*Lesson:* Any value passed to `useMachine` must be referentially stable. This
+applies to any `@xstate/react` v4+ consumer. The `useMemo` pattern is the
+canonical solution.
+
+---
+
+**Bug 2 — auth-keycloak: double `kc.init()` call (`A 'Keycloak' instance can only
+be initialized once`)**
+
+*Symptom:* After fixing Bug 1, the app showed "Authentication failed: A 'Keycloak'
+instance can only be initialized once." immediately after successful Keycloak login.
+
+*Root cause:* The idempotency guard used a boolean flag set only *after*
+`kc.init()` resolved:
+
+```typescript
+if (initialized && lastResult !== null) { return lastResult; }  // guard
+const authenticated = await kc.init({...});
+initialized = true;  // set AFTER the async call
+```
+
+React 18 Strict Mode unmounts and remounts in development. The sequence was:
+
+1. Mount 1: `init()` called → flag `false` → `kc.init()` starts (async, in flight)
+2. Strict Mode cleanup: actor stops, but `kc.init()` is NOT cancelled
+3. Mount 2: `init()` called again → flag still `false` (first call not resolved yet)
+   → `kc.init()` called a second time → **throws**
+
+The boolean flag is not atomic: it only protects against calls *after* resolution,
+not against concurrent calls *during* resolution.
+
+*Fix:* Cache the **Promise itself** instead of the boolean result:
+
+```typescript
+let initPromise: Promise<AuthInitResult> | null = null;
+
+init(): Promise<AuthInitResult> {
+  if (initPromise !== null) return initPromise;  // concurrent → same promise
+  initPromise = (async () => { /* kc.init() */ })();
+  return initPromise;
+}
+```
+
+A Promise reference is set synchronously before `kc.init()` is awaited. Any
+concurrent or subsequent call finds a non-null `initPromise` and returns it,
+guaranteeing `kc.init()` is called exactly once regardless of concurrency.
+
+*Lesson:* Idempotency guards for async operations must be based on the in-flight
+Promise, not on a flag set in the resolution callback. This is a general pattern
+applicable to any singleton async initialization (DB connections, SDK inits, etc.).
+
+---
+
+## 2026-05-06 (Session: auth-core + auth-keycloak implementation)
+
+### Milestone: XState machine, Keycloak adapter, build pipeline verified
+
+#### What was done
+- Implemented the full XState v5 state machine in `auth-core/src/machine.ts`.
+- Implemented the Keycloak adapter factory in `auth-keycloak/src/index.ts`.
+- Added idempotency guard to `auth-keycloak/src/index.ts` `init()` (see decision #2 below).
+- Implemented `auth-nextjs/src/index.tsx`: AuthProvider component + useAuth hook.
+- Applied structural fix to TypeScript configs across all packages (see decision #3 below).
+- Verified `pnpm build` succeeds end-to-end: all three packages emit `dist/index.js`,
+  `dist/index.cjs`, `dist/index.d.ts`, `dist/index.d.cts` + source maps with zero errors.
+
+#### Key decisions
+
+**1. auth-nextjs: `xstate` types derived via `ReturnType<typeof useMachine<...>>` instead of direct import.**
+
+*Problem:* Importing `type { Actor, StateFrom }` directly from `xstate` fails during DTS
+generation because `xstate` is not a declared dependency of `auth-nextjs` — only a peer
+of `@xstate/react`. Under pnpm's strict hoisting, packages can only access declared deps.
+
+*Solution:* Derive the snapshot and send function types from `useMachine`'s own return type:
+```ts
+type UseMachineReturn = ReturnType<typeof useMachine<AuthMachine>>;
+// snapshot: UseMachineReturn[0], send: UseMachineReturn[1]
+```
+This avoids declaring `xstate` as a devDependency of `auth-nextjs` and future-proofs the
+types against `xstate` version changes (they'll always match what `@xstate/react` expects).
+
+**2. auth-keycloak: idempotent init() guard.**
+
+*Problem:* React 18 Strict Mode simulates unmount/remount in development. The `<AuthProvider>`
+component sends the `INIT` event in a `useEffect`, which fires twice in Strict Mode. This
+causes `provider.init()` to be called twice, and `keycloak-js` throws on the second call:
+`"A 'Keycloak' instance can only be initialized once"`.
+
+*Solution:* The adapter tracks `initialized: boolean` and `lastResult: AuthInitResult | null`
+in closure scope. If `init()` is called after the first successful initialization, it returns
+`lastResult` immediately without touching keycloak-js.
+
+*Why the guard lives in the adapter, not in AuthProvider:*
+The adapter owns the keycloak-js singleton and knows its limitations. The React component
+should not know implementation details of the IDP library. This satisfies the hexagonal
+architecture: concerns stay within the layer that owns them.
+
+**3. Structural fix: split `tsconfig.json` / `tsconfig.build.json` per package.**
+
+*Problem:* TypeScript's `composite: true` option — required for project references to work
+(IDE navigation, incremental build, `tsc -b` at the root) — enforces constraints that conflict
+with tsup's bundling pipeline:
+- Forces `declaration: true` implicitly, so `tsc` tries to emit `.d.ts` files to `outDir`.
+- Writes a `.tsbuildinfo` file that tracks outputs, conflicting with tsup's `clean: true`.
+- In certain tsup versions the combination causes duplicate-emit or stale-artifact errors.
+
+*Pattern applied:*
+- `tsconfig.json` (per package): keeps `composite: true` + `tsBuildInfoFile`. Used by the
+  IDE and by TypeScript project references (`tsc -b` at root, `references` in tsconfig.base).
+- `tsconfig.build.json` (per package): identical except `composite` and `tsBuildInfoFile` are
+  omitted. Used exclusively by tsup via `tsconfig: './tsconfig.build.json'` in tsup.config.ts.
+
+*Why this is the standard:*
+The same split is used by Vite (source/config tsconfig), tRPC, TanStack Query, and other
+widely-adopted monorepo packages. It is the only way to satisfy both TypeScript's project
+reference requirements and a bundler-driven build simultaneously, without hacks or suppressed
+errors. Future contributors who maintain or add packages to this monorepo should follow the
+same pattern.
+
+---
+
 ## 2026-05-XX (Session: foundations)
 
 ### Milestone: complete monorepo scaffold + first commit pushed
