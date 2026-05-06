@@ -112,20 +112,21 @@ export function createKeycloakProvider(options: KeycloakProviderOptions): AuthPr
 
   // Idempotency guard for init().
   // keycloak-js throws if init() is called more than once on the same instance.
-  // React 18 Strict Mode simulates unmount/remount in development, which causes
-  // the host component to send INIT twice to the machine — and therefore to call
-  // init() twice. Tracking initialized state here (in the adapter, which owns the
-  // singleton) is the architecturally correct place for this guard.
-  let initialized = false;
-  let lastResult: AuthInitResult | null = null;
+  // A boolean flag is not enough: React 18 Strict Mode unmounts and remounts
+  // synchronously, so a second init() call can arrive while the first kc.init()
+  // is still in flight (flag = false). The correct fix is to cache the in-flight
+  // promise itself — any concurrent or subsequent call joins the same promise
+  // rather than starting a new kc.init().
+  let initPromise: Promise<AuthInitResult> | null = null;
 
   return {
     /**
      * Initializes the Keycloak session and returns the current auth state.
      *
-     * This method is idempotent: subsequent calls return the cached result from
-     * the first invocation without re-initializing keycloak-js. This is intentional
-     * and required to survive React 18 Strict Mode's simulated remount.
+     * This method is idempotent: the first call starts kc.init() and caches the
+     * resulting promise. Every subsequent call — whether concurrent or after
+     * resolution — returns that same promise without touching keycloak-js again.
+     * This is required to survive React 18 Strict Mode's simulated remount.
      *
      * With the default `onLoad: 'login-required'`, Keycloak redirects
      * unauthenticated users before this promise resolves, so `authenticated: false`
@@ -135,37 +136,37 @@ export function createKeycloakProvider(options: KeycloakProviderOptions): AuthPr
      *   the OIDC discovery document cannot be fetched. The machine maps this to
      *   `INIT_FAILED`.
      */
-    async init(): Promise<AuthInitResult> {
-      if (initialized && lastResult !== null) {
-        return lastResult;
+    init(): Promise<AuthInitResult> {
+      if (initPromise !== null) {
+        return initPromise;
       }
 
-      const authenticated = await kc.init({
-        onLoad: options.onLoad ?? 'login-required',
-        checkLoginIframe: options.checkLoginIframe ?? false,
-        pkceMethod: options.pkceMethod ?? 'S256',
-        silentCheckSsoRedirectUri: options.silentCheckSsoRedirectUri,
-      });
+      initPromise = (async (): Promise<AuthInitResult> => {
+        const authenticated = await kc.init({
+          onLoad: options.onLoad ?? 'login-required',
+          checkLoginIframe: options.checkLoginIframe ?? false,
+          pkceMethod: options.pkceMethod ?? 'S256',
+          silentCheckSsoRedirectUri: options.silentCheckSsoRedirectUri,
+        });
 
-      initialized = true;
+        if (!authenticated) {
+          return { authenticated: false };
+        }
 
-      if (!authenticated) {
-        lastResult = { authenticated: false };
-        return lastResult;
-      }
+        return {
+          authenticated: true,
+          token: kc.token,
+          refreshToken: kc.refreshToken,
+          // keycloak-js exposes `exp` in epoch seconds; the contract uses epoch ms.
+          expiresAt:
+            kc.tokenParsed?.exp !== undefined ? kc.tokenParsed.exp * 1000 : undefined,
+          tokenParsed: kc.tokenParsed as AuthUserClaims | undefined,
+          realmRoles: kc.tokenParsed?.realm_access?.roles ?? [],
+          resourceRoles: kc.tokenParsed?.resource_access ?? {},
+        };
+      })();
 
-      lastResult = {
-        authenticated: true,
-        token: kc.token,
-        refreshToken: kc.refreshToken,
-        // keycloak-js exposes `exp` in epoch seconds; the contract uses epoch ms.
-        expiresAt:
-          kc.tokenParsed?.exp !== undefined ? kc.tokenParsed.exp * 1000 : undefined,
-        tokenParsed: kc.tokenParsed as AuthUserClaims | undefined,
-        realmRoles: kc.tokenParsed?.realm_access?.roles ?? [],
-        resourceRoles: kc.tokenParsed?.resource_access ?? {},
-      };
-      return lastResult;
+      return initPromise;
     },
 
     async login(): Promise<void> {

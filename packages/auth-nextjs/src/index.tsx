@@ -142,7 +142,13 @@ export function AuthProvider({
   errorComponent,
   renderOnUnauthenticated = false,
 }: AuthProviderProps): React.JSX.Element {
-  const [snapshot, send] = useMachine(createAuthMachine(provider));
+  // Memoize the machine so its `config` reference is stable across renders.
+  // useIdleActorRef (inside useMachine) compares logic.config by reference on
+  // every render; a new object each render would call setCurrent() during render
+  // and trigger an infinite re-render loop. provider is stable (module-level),
+  // so this memo only runs once per component lifecycle.
+  const machine = React.useMemo(() => createAuthMachine(provider), [provider]);
+  const [snapshot, send] = useMachine(machine);
 
   // Send INIT once on mount to kick off the Keycloak initialization flow.
   // The provider's init() is idempotent — if React 18 Strict Mode causes a

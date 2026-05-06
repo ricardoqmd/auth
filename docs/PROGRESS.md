@@ -5,6 +5,95 @@
 
 ---
 
+## 2026-05-06 (Session: end-to-end testing — two runtime bugs caught)
+
+### Milestone: demo app runs end-to-end against local Keycloak
+
+#### What was done
+- Ran the full stack: Keycloak 26.6 + Next.js demo app against local Docker instance.
+- Caught and fixed two bugs that only manifested at runtime (build and typecheck
+  passed cleanly).
+- Confirmed successful login flow with `ricardo` user, RBAC checks, and logout.
+
+#### Bugs diagnosed and fixed
+
+**Bug 1 — auth-nextjs: infinite re-renders (`Too many re-renders`)**
+
+*Symptom:* App rendered, Keycloak login page appeared, user logged in, app crashed
+with "React limits the number of renders to prevent an infinite loop."
+
+*Root cause:* `createAuthMachine(provider)` was called inline in every render of
+`AuthProvider`. Internally, `@xstate/react` v4's `useIdleActorRef` compares the
+machine's `config` property by reference on every render:
+
+```javascript
+// inside useIdleActorRef (@xstate/react v4)
+if (logic.config !== currentConfig) {
+  setCurrent([logic.config, newActorRef]);  // setState during render!
+}
+```
+
+Each call to `createAuthMachine` produces a new object with a new `config`
+reference → the condition is always `true` → `setCurrent` is called during render
+→ React triggers another render → another new machine → infinite loop.
+
+*Fix:* Wrap `createAuthMachine(provider)` in `useMemo` keyed on `provider`.
+Since `provider` is created at module level (stable reference), the machine is
+created exactly once per component lifecycle.
+
+*Lesson:* Any value passed to `useMachine` must be referentially stable. This
+applies to any `@xstate/react` v4+ consumer. The `useMemo` pattern is the
+canonical solution.
+
+---
+
+**Bug 2 — auth-keycloak: double `kc.init()` call (`A 'Keycloak' instance can only
+be initialized once`)**
+
+*Symptom:* After fixing Bug 1, the app showed "Authentication failed: A 'Keycloak'
+instance can only be initialized once." immediately after successful Keycloak login.
+
+*Root cause:* The idempotency guard used a boolean flag set only *after*
+`kc.init()` resolved:
+
+```typescript
+if (initialized && lastResult !== null) { return lastResult; }  // guard
+const authenticated = await kc.init({...});
+initialized = true;  // set AFTER the async call
+```
+
+React 18 Strict Mode unmounts and remounts in development. The sequence was:
+
+1. Mount 1: `init()` called → flag `false` → `kc.init()` starts (async, in flight)
+2. Strict Mode cleanup: actor stops, but `kc.init()` is NOT cancelled
+3. Mount 2: `init()` called again → flag still `false` (first call not resolved yet)
+   → `kc.init()` called a second time → **throws**
+
+The boolean flag is not atomic: it only protects against calls *after* resolution,
+not against concurrent calls *during* resolution.
+
+*Fix:* Cache the **Promise itself** instead of the boolean result:
+
+```typescript
+let initPromise: Promise<AuthInitResult> | null = null;
+
+init(): Promise<AuthInitResult> {
+  if (initPromise !== null) return initPromise;  // concurrent → same promise
+  initPromise = (async () => { /* kc.init() */ })();
+  return initPromise;
+}
+```
+
+A Promise reference is set synchronously before `kc.init()` is awaited. Any
+concurrent or subsequent call finds a non-null `initPromise` and returns it,
+guaranteeing `kc.init()` is called exactly once regardless of concurrency.
+
+*Lesson:* Idempotency guards for async operations must be based on the in-flight
+Promise, not on a flag set in the resolution callback. This is a general pattern
+applicable to any singleton async initialization (DB connections, SDK inits, etc.).
+
+---
+
 ## 2026-05-06 (Session: auth-core + auth-keycloak implementation)
 
 ### Milestone: XState machine, Keycloak adapter, build pipeline verified
