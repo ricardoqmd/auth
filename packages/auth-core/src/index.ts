@@ -46,6 +46,16 @@ export interface AuthInitResult {
   resourceRoles?: Record<string, { roles: string[] }>;
 }
 
+/** Options accepted by AuthProvider.logout() on a per-call basis. */
+export interface LogoutOptions {
+  /**
+   * URI to redirect to after logout completes.
+   * Must be an absolute URL registered in the IDP client's allowed redirect URIs.
+   * Falls back to the provider-level default when omitted.
+   */
+  redirectUri?: string;
+}
+
 /**
  * Adapter contract — implement this to plug any IDP into the state machine.
  * Reference implementation: @ricardoqmd/auth-keycloak
@@ -53,7 +63,7 @@ export interface AuthInitResult {
 export interface AuthProvider {
   init(): Promise<AuthInitResult>;
   login(): Promise<void>;
-  logout(): Promise<void>;
+  logout(options?: LogoutOptions): Promise<void>;
   refreshToken(minValidity?: number): Promise<AuthTokens | null>;
 }
 
@@ -62,4 +72,4 @@ export interface AuthProvider {
 // ============================================================================
 
 export { createAuthMachine } from "./machine.js";
-export type { AuthContext, AuthEvent } from "./machine.js";
+export type { AuthContext, AuthError, AuthEvent } from "./machine.js";
