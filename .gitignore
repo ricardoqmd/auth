@@ -41,3 +41,6 @@ test-results/
 
 # Misc
 .cache/
+
+# Claude Code local state
+.claude/
