@@ -22,7 +22,7 @@
     "kc:logs": "docker compose -f docker/docker-compose.yml logs -f keycloak",
     "kc:reset": "docker compose -f docker/docker-compose.yml down -v && pnpm kc:up",
     "changeset": "changeset",
-    "version": "changeset version",
+    "version-packages": "changeset version",
     "release": "pnpm build && changeset publish"
   },
   "devDependencies": {

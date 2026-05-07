@@ -1,8 +1,14 @@
 {
   "name": "@ricardoqmd/auth-core",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Framework-agnostic XState machine and types for authentication flows",
-  "keywords": ["auth", "xstate", "state-machine", "keycloak", "oidc"],
+  "keywords": [
+    "auth",
+    "xstate",
+    "state-machine",
+    "keycloak",
+    "oidc"
+  ],
   "author": "ricardoqmd",
   "license": "MIT",
   "repository": {
@@ -23,7 +29,11 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",

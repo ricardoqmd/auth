@@ -1,8 +1,15 @@
 {
   "name": "@ricardoqmd/auth-nextjs",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Next.js client-side bindings for @ricardoqmd/auth-core — AuthProvider, useAuth hook, RBAC helpers",
-  "keywords": ["auth", "nextjs", "react", "keycloak", "hook", "rbac"],
+  "keywords": [
+    "auth",
+    "nextjs",
+    "react",
+    "keycloak",
+    "hook",
+    "rbac"
+  ],
   "author": "ricardoqmd",
   "license": "MIT",
   "repository": {
@@ -23,7 +30,11 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
