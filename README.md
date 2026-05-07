@@ -39,12 +39,53 @@ The split lets you swap the IDP adapter (Keycloak today, Auth0/Cognito tomorrow)
 
 ## Packages
 
-| Package                          | Description                                            | Status |
-| -------------------------------- | ------------------------------------------------------ | ------ |
-| `@ricardoqmd/auth-core`          | Framework-agnostic XState machine + types              | 🚧 0.0.1 |
-| `@ricardoqmd/auth-keycloak`      | Keycloak adapter using `keycloak-js`                   | 🚧 0.0.1 |
-| `@ricardoqmd/auth-nextjs`        | Next.js client-side bindings (`AuthProvider`, `useAuth`) | 🚧 0.0.1 |
-| `@ricardoqmd/auth-nextjs-ssr`    | Middleware + JWT validation (server-side)              | 🔜 planned |
+| Package                          | Description                                              | Version |
+| -------------------------------- | -------------------------------------------------------- | ------- |
+| `@ricardoqmd/auth-core`          | Framework-agnostic XState machine + types                | [![npm](https://img.shields.io/npm/v/@ricardoqmd/auth-core)](https://www.npmjs.com/package/@ricardoqmd/auth-core) |
+| `@ricardoqmd/auth-keycloak`      | Keycloak adapter using `keycloak-js`                     | [![npm](https://img.shields.io/npm/v/@ricardoqmd/auth-keycloak)](https://www.npmjs.com/package/@ricardoqmd/auth-keycloak) |
+| `@ricardoqmd/auth-nextjs`        | Next.js client-side bindings (`AuthProvider`, `useAuth`) | [![npm](https://img.shields.io/npm/v/@ricardoqmd/auth-nextjs)](https://www.npmjs.com/package/@ricardoqmd/auth-nextjs) |
+| `@ricardoqmd/auth-nextjs-ssr`    | Middleware + JWT validation (server-side)                | 🔜 planned |
+
+## Installation
+
+```bash
+npm install @ricardoqmd/auth-nextjs @ricardoqmd/auth-keycloak @ricardoqmd/auth-core
+# peer dependencies
+npm install keycloak-js react react-dom next
+```
+
+Quick start:
+
+```tsx
+// providers.tsx (Client Component)
+"use client";
+import { AuthProvider } from "@ricardoqmd/auth-nextjs";
+import { createKeycloakProvider } from "@ricardoqmd/auth-keycloak";
+
+const provider = createKeycloakProvider({
+  config: { url: "https://kc.example.com", realm: "my-realm", clientId: "my-app" },
+});
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <AuthProvider provider={provider}>{children}</AuthProvider>;
+}
+```
+
+```tsx
+// Any Client Component inside <Providers>
+import { useAuth } from "@ricardoqmd/auth-nextjs";
+
+export function Dashboard() {
+  const { user, logout, hasRole } = useAuth();
+  return (
+    <>
+      <p>Welcome, {user?.preferred_username}</p>
+      {hasRole("admin") && <AdminPanel />}
+      <button onClick={logout}>Sign out</button>
+    </>
+  );
+}
+```
 
 ## Local development
 
@@ -97,10 +138,10 @@ pnpm changeset    # record a release-worthy change
 
 ## Roadmap
 
-- **v0.1.0 (this iteration)** — usable end-to-end: redirect-on-boot, useAuth, RBAC helpers, demo app working against local Keycloak.
-- **v0.2.0** — robust XState tests, error edge cases, refresh-token race conditions.
+- **v0.1.0** ✅ — usable end-to-end: redirect-on-boot, useAuth, RBAC helpers, demo app working against local Keycloak. Published to npm.
+- **v0.2.0** — robust XState tests, error edge cases, refresh-token race conditions, GitHub Actions CI.
 - **v0.3.0** — `auth-nextjs-ssr` package: middleware + JWT validation against JWKS for server components / route handlers.
-- **v1.0.0** — stable public API, full docs site, migration guides, GitHub Actions CI.
+- **v1.0.0** — stable public API, full docs site, migration guides.
 
 ## License
 
