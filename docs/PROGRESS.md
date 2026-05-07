@@ -5,6 +5,73 @@
 
 ---
 
+## 2026-05-07 (Session: v0.1.0 published to npm)
+
+### Milestone: first public release — three packages live on npm
+
+#### What was done
+- Merged PR #1 (`feat/auth-core-state-machine`) via squash-merge into `main`.
+- Added a Changeset entry for v0.1.0 via PR #2.
+- Bumped versions to 0.1.0 and renamed the `version` script to `version-packages`
+  via PR #3 (see Key technical issues #3 below).
+- Added `LICENSE` file to each publishable package dist via PR #4.
+- Published all three packages to npm:
+  - `@ricardoqmd/auth-core@0.1.0`
+  - `@ricardoqmd/auth-keycloak@0.1.0`
+  - `@ricardoqmd/auth-nextjs@0.1.0`
+
+#### Key technical issues resolved during release
+
+**1. tsup + TypeScript composite: true conflict.**
+`composite: true` in `tsconfig.json` is required for project references (IDE,
+`tsc -b`) but conflicts with tsup's DTS build pipeline. Fix: split into two
+configs per package — `tsconfig.json` (with `composite: true`) for tooling, and
+`tsconfig.build.json` (without) for tsup. Applied to `auth-core` and
+`auth-keycloak`. This pattern is used by Vite, tRPC, and TanStack.
+
+**2. React 18 Strict Mode + keycloak-js double-init race condition.**
+Two bugs caught during end-to-end testing before release:
+
+- *Infinite re-renders*: `createAuthMachine(provider)` called on every render
+  without memoization. `@xstate/react` v4's `useIdleActorRef` compares
+  `logic.config` by reference; a new object each render triggered `setCurrent()`
+  during render → infinite loop. Fix: `useMemo(() => createAuthMachine(provider),
+  [provider])`.
+
+- *Double `kc.init()` call*: a boolean `initialized` flag only becomes `true`
+  after `kc.init()` resolves. React Strict Mode's simulated remount calls
+  `init()` again while the first is still in flight — the flag is still `false`
+  and the guard passes. Fix: cache the **Promise** itself instead of the boolean.
+  A Promise reference is set synchronously before the `await`, so any concurrent
+  call returns the same Promise and `kc.init()` is guaranteed to run exactly once.
+
+**3. `pnpm version` conflicts with pnpm's built-in command.**
+Running `pnpm version` executes pnpm's own version command (like `npm version`),
+not the Changeset-based script declared in `package.json`. Renamed the script to
+`version-packages` to avoid the collision. `pnpm changeset version` still works
+as the underlying mechanism.
+
+**4. npm 2FA (OTP) requirement on first publish.**
+First-time publish to a new npm scope (`@ricardoqmd/`) requires OTP even when
+automation tokens are configured. Passed `--otp <code>` to `pnpm publish` for
+the initial release. Subsequent releases can use a `provenance` or CI token.
+
+#### Workflow lessons learned
+
+- **`pnpm pack --dry-run` before publishing.** Reveals exactly what files land in
+  the tarball (dist, README, LICENSE). Caught the missing `LICENSE` file before
+  pushing to npm.
+
+- **Isolate the variable when debugging.** During the Strict Mode bugs, the
+  re-render loop and the double-init looked like one problem. Fixing re-renders
+  first (useMemo) exposed the race condition cleanly as a separate error.
+
+- **Ship-now, polish-later on first release.** v0.1.0 ships without unit tests or
+  CI. The package is functional and documented; tests and CI are v0.2.0. A late
+  v0.1.0 would be worse than an imperfect one.
+
+---
+
 ## 2026-05-06 (Session: end-to-end testing — two runtime bugs caught)
 
 ### Milestone: demo app runs end-to-end against local Keycloak
