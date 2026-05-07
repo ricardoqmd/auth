@@ -1,6 +1,6 @@
 {
   "name": "@ricardoqmd/auth-nextjs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Next.js client-side bindings for @ricardoqmd/auth-core — AuthProvider, useAuth hook, RBAC helpers",
   "keywords": [
     "auth",
