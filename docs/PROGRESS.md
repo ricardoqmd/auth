@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-05-08 (Session: auth-nextjs README and transpilePackages investigation)
+
+### Milestone: auth-nextjs README expanded; transpilePackages documented as optional
+
+#### What was done
+- Expanded `packages/auth-nextjs/README.md` from a minimal scaffold stub into a
+  full consumer-facing reference: Installation, Usage (3-step guide with code),
+  API tables for `<AuthProvider>` props and `useAuth()` return values, and a
+  Troubleshooting section.
+- Investigated whether `transpilePackages` is required for Next.js consumers.
+
+#### Key decision: transpilePackages is NOT required
+
+*Initial assumption:* `transpilePackages` would be required because the package
+ships ESM with `"use client"` directives and `next.config.js` in the demo app
+has it configured.
+
+*Verification:* Tested a clean Next.js 16.2.6 project (Turbopack) with
+`rm -rf .next node_modules/.cache` and no `transpilePackages` configured.
+Both `npm run dev` and `npm run build` succeeded with no errors or warnings.
+
+*Conclusion:* Next.js 14+ handles ESM packages with `"use client"` directives
+correctly out-of-the-box when the package ships a proper CJS fallback (which
+ours does — tsup dual ESM+CJS output). The `transpilePackages` in the demo app
+was scaffolded as a defensive measure during initial development and is not
+needed in production consumers.
+
+*Documentation decision:* Added `transpilePackages` to the Troubleshooting
+section (not Installation) as an optional fallback for edge cases like corrupted
+caches or complex monorepo setups. Also documented the cache-clear step
+(`rm -rf .next node_modules/.cache`) as a first diagnostic to try before
+concluding that `transpilePackages` is needed.
+
+*Lesson:* Always verify assumptions with a clean environment before documenting
+a requirement. The initial error (SSR failure) was caused by a corrupted cache,
+not by a structural incompatibility. Documenting it as REQUIRED would have
+created unnecessary friction for every consumer.
+
+---
+
 ## 2026-05-07 (Session: v0.1.0 published to npm)
 
 ### Milestone: first public release — three packages live on npm
