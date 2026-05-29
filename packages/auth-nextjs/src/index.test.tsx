@@ -86,12 +86,16 @@ describe("useAuth", () => {
         token: "fake-token",
         refreshToken: "fake-refresh",
         expiresAt: Date.now() + 60_000,
-        tokenParsed: {
+        user: {
           sub: "user-1",
-          email: "test@example.com"
+          email: "test@example.com",
+          roles: ["admin"]
         },
-        realmRoles: ["admin"],
-        resourceRoles: {},
+        idpClaims: {
+          sub: "user-1",
+          realm_access: { roles: ["admin"] },
+          resourceRoles: {},
+        }
       }),
       login: () => Promise.resolve(),
       logout: () => Promise.resolve(),

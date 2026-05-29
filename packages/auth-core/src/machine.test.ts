@@ -80,13 +80,17 @@ describe("createAuthMachine", () => {
         token: "fake-access-token",
         refreshToken: "fake-refresh-token",
         expiresAt: Date.now() + 60_000,  // expira en 60 segundos
-        tokenParsed: {
+        user: {
           sub: "user-123",
           preferred_username: "test-user",
           email: "test@example.com",
+          roles: ["app-user"]
         },
-        realmRoles: ["app-user"],
-        resourceRoles: {},
+        idpClaims: {
+          sub: "user-123",
+          realm_access: { roles: ["app-user"] },
+          resource_access: {},
+        }
       }),
       login: () => Promise.resolve(),
       logout: () => Promise.resolve(),
@@ -108,7 +112,7 @@ describe("createAuthMachine", () => {
 
     expect(snapshot.context.token).toBe("fake-access-token");
     expect(snapshot.context.refreshToken).toBe("fake-refresh-token");
-    expect(snapshot.context.tokenParsed?.sub).toBe("user-123");
+    expect(snapshot.context.user?.sub).toBe("user-123");
 
   });
 

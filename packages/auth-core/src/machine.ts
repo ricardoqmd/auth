@@ -15,14 +15,13 @@ export interface AuthError {
   message: string;
 }
 
-export interface AuthContext {
+export interface AuthContext<TIdpClaims = unknown> {
   token: string | null;
   refreshToken: string | null;
-  tokenParsed: AuthUserClaims | null;
+  user: AuthUserClaims | null;
+  idpClaims: TIdpClaims | null;
   /** Epoch ms — when the access token expires. */
   expiresAt: number | null;
-  realmRoles: string[];
-  resourceRoles: Record<string, { roles: string[] }>;
   error: AuthError | null;
 }
 
@@ -45,16 +44,6 @@ const PROACTIVE_REFRESH_BUFFER_MS = 30_000;
 /** Fallback refresh delay when expiresAt is unavailable (should not happen in practice). */
 const FALLBACK_REFRESH_DELAY_MS = 5 * 60 * 1000;
 
-const INITIAL_CONTEXT: AuthContext = {
-  token: null,
-  refreshToken: null,
-  tokenParsed: null,
-  expiresAt: null,
-  realmRoles: [],
-  resourceRoles: {},
-  error: null,
-};
-
 function extractErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
@@ -65,15 +54,25 @@ function extractErrorMessage(error: unknown): string {
 // Machine factory
 // ============================================================================
 
-export function createAuthMachine(provider: AuthProvider) {
+export function createAuthMachine<TIdpClaims = unknown>(provider: AuthProvider<TIdpClaims>) {
+
+  const INITIAL_CONTEXT: AuthContext<TIdpClaims> = {
+    token: null,
+    refreshToken: null,
+    user: null,
+    idpClaims: null,
+    expiresAt: null,
+    error: null,
+  };
+
   return setup({
     types: {} as {
-      context: AuthContext;
+      context: AuthContext<TIdpClaims>;
       events: AuthEvent;
     },
 
     delays: {
-      TOKEN_REFRESH_DELAY: ({ context }: { context: AuthContext }) => {
+      TOKEN_REFRESH_DELAY: ({ context }: { context: AuthContext<TIdpClaims> }) => {
         if (context.expiresAt === null) return FALLBACK_REFRESH_DELAY_MS;
         return Math.max(0, context.expiresAt - Date.now() - PROACTIVE_REFRESH_BUFFER_MS);
       },
@@ -81,7 +80,7 @@ export function createAuthMachine(provider: AuthProvider) {
     },
 
     actors: {
-      initActor: fromPromise<AuthInitResult>(() => provider.init()),
+      initActor: fromPromise<AuthInitResult<TIdpClaims>>(() => provider.init()),
       refreshActor: fromPromise<AuthTokens | null>(() => provider.refreshToken()),
       logoutActor: fromPromise<void>(() => provider.logout()),
     },
@@ -89,7 +88,7 @@ export function createAuthMachine(provider: AuthProvider) {
     guards: {
       // event.output comes from onDone — not part of AuthEvent, so cast is required.
       isAuthenticated: ({ event }) =>
-        (event as unknown as { output: AuthInitResult }).output.authenticated,
+        (event as unknown as { output: AuthInitResult<TIdpClaims> }).output.authenticated,
       hasTokens: ({ event }) =>
         (event as unknown as { output: AuthTokens | null }).output !== null,
     },
@@ -100,21 +99,19 @@ export function createAuthMachine(provider: AuthProvider) {
       clearTokens: assign({
         token: null,
         refreshToken: null,
-        tokenParsed: null,
+        user: null,
+        idpClaims: null,
         expiresAt: null,
-        realmRoles: [],
-        resourceRoles: {},
       }),
 
       assignTokensFromInit: assign(({ event }) => {
-        const result = (event as unknown as { output: AuthInitResult }).output;
+        const result = (event as unknown as { output: AuthInitResult<TIdpClaims> }).output;
         return {
           token: result.token ?? null,
           refreshToken: result.refreshToken ?? null,
-          tokenParsed: result.tokenParsed ?? null,
+          user: result.user ?? null,
+          idpClaims: result.idpClaims ?? null,
           expiresAt: result.expiresAt ?? null,
-          realmRoles: result.realmRoles ?? [],
-          resourceRoles: result.resourceRoles ?? {},
           error: null,
         };
       }),

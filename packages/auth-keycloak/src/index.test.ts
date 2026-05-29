@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { createKeycloakProvider } from "./index.js";
+import { createKeycloakProvider, hasResourceRole } from "./index.js";
+import type { KeycloakIdpClaims } from "./index.js";
 
 let mockKeycloakInstance: {
   init: ReturnType<typeof vi.fn>;
@@ -92,4 +93,56 @@ describe("createKeycloakProvider", () => {
     });
 
   });
+});
+
+// ============================================================================
+// hasResourceRole — pure utility, no Keycloak mocks needed
+// ============================================================================
+
+  describe("hasResourceRole", () => {
+    it("returns true when the user has the role in the given resource", () => {
+      const claims: KeycloakIdpClaims = {
+        resource_access: {
+          "my-app": { roles: ["editor", "viewer"] },
+        },
+      };
+
+      expect(hasResourceRole(claims, "my-app", "editor")).toBe(true);
+    });
+
+    it("returns false when the user does not have the role in the resource", () => {
+      const claims: KeycloakIdpClaims = {
+        resource_access: {
+          "my-app": { roles: ["viewer"] },
+        },
+      };
+
+      expect(hasResourceRole(claims, "my-app", "editor")).toBe(false);
+    });
+
+    it("returns false when the resource is not present in claims", () => {
+      const claims: KeycloakIdpClaims = {
+        resource_access: {
+          "other-app": { roles: ["editor"] },
+        },
+      };
+
+      expect(hasResourceRole(claims, "my-app", "editor")).toBe(false);
+    });
+
+    it("returns false when claims is null", () => {
+      // Defensive null handling — the user might not be authenticated yet
+      // when this helper is called from a React component.
+      expect(hasResourceRole(null, "my-app", "editor")).toBe(false);
+    });
+
+    it("returns false when resource_access is missing from claims", () => {
+      // Edge case: a token without Keycloak-specific claims (e.g. minimal OIDC token).
+      const claims: KeycloakIdpClaims = {
+        sub: "user-123",
+        // no resource_access
+      };
+
+      expect(hasResourceRole(claims, "my-app", "editor")).toBe(false);
+    });
 });

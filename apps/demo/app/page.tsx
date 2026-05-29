@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@ricardoqmd/auth-nextjs";
+import { hasResourceRole, type KeycloakIdpClaims } from "@ricardoqmd/auth-keycloak";
 
 // This page is only rendered when the machine is in the `authenticated` state.
 // The gate in <AuthProvider> (loadingComponent / errorComponent) handles all other
@@ -46,11 +47,11 @@ export default function HomePage() {
   const {
     user,
     token,
+    idpClaims,
     logout,
     hasRole,
     hasAnyRole,
-    hasResourceRole,
-  } = useAuth();
+  } = useAuth<KeycloakIdpClaims>();
 
   const truncatedToken = token
     ? `${token.slice(0, 40)}…`
@@ -93,8 +94,9 @@ export default function HomePage() {
       <section style={{ marginTop: 28 }}>
         <h2 style={{ fontSize: 16, marginBottom: 4 }}>RBAC checks</h2>
         <p style={{ color: "#6b7280", fontSize: 13, marginTop: 0, marginBottom: 12 }}>
-          Realm roles come from <code>realm_access.roles</code>; resource roles from{" "}
-          <code>resource_access[resource].roles</code> in the decoded token.
+          Realm roles come from the normalized <code>user.roles</code> array;
+          resource roles use <code>hasResourceRole(idpClaims, ...)</code> from
+          the Keycloak adapter.
         </p>
         <table style={{ borderCollapse: "collapse" }}>
           <tbody>
@@ -105,16 +107,16 @@ export default function HomePage() {
               value={hasAnyRole(["admin", "superuser"])}
             />
             <RbacRow
-              label={`hasResourceRole("${DEMO_CLIENT}", "editor")`}
-              value={hasResourceRole(DEMO_CLIENT, "editor")}
+              label={`hasResourceRole(idpClaims, "${DEMO_CLIENT}", "editor")`}
+              value={hasResourceRole(idpClaims, DEMO_CLIENT, "editor")}
             />
             <RbacRow
-              label={`hasResourceRole("${DEMO_CLIENT}", "viewer")`}
-              value={hasResourceRole(DEMO_CLIENT, "viewer")}
+              label={`hasResourceRole(idpClaims, "${DEMO_CLIENT}", "viewer")`}
+              value={hasResourceRole(idpClaims, DEMO_CLIENT, "viewer")}
             />
             <RbacRow
-              label={`hasResourceRole("${DEMO_CLIENT}", "nonexistent")`}
-              value={hasResourceRole(DEMO_CLIENT, "nonexistent")}
+              label={`hasResourceRole(idpClaims, "${DEMO_CLIENT}", "nonexistent")`}
+              value={hasResourceRole(idpClaims, DEMO_CLIENT, "nonexistent")}
             />
           </tbody>
         </table>
@@ -141,10 +143,15 @@ export default function HomePage() {
       </section>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Full decoded claims */}
+      {/* Normalized OIDC claims (universal across IDPs) */}
       {/* ------------------------------------------------------------------ */}
       <section style={{ marginTop: 28 }}>
-        <h2 style={{ fontSize: 16, marginBottom: 8 }}>Decoded token claims (user object)</h2>
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>
+          Normalized OIDC claims (<code>user</code>)
+        </h2>
+        <p style={{ color: "#6b7280", fontSize: 13, marginTop: 0, marginBottom: 12 }}>
+          Shape is identical across IDPs (Keycloak, Entra, Cognito, etc.).
+        </p>
         <pre
           style={{
             background: "#f3f4f6",
@@ -156,6 +163,31 @@ export default function HomePage() {
           }}
         >
           {JSON.stringify(user, null, 2)}
+        </pre>
+      </section>
+
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Keycloak-specific claims */}
+      {/* ------------------------------------------------------------------ */}
+      <section style={{ marginTop: 28 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>
+          Keycloak-specific claims (<code>idpClaims</code>)
+        </h2>
+        <p style={{ color: "#6b7280", fontSize: 13, marginTop: 0, marginBottom: 12 }}>
+          IDP-specific token contents (realm_access, resource_access, etc.).
+        </p>
+        <pre
+          style={{
+            background: "#f3f4f6",
+            padding: "12px 14px",
+            borderRadius: 6,
+            fontSize: 12,
+            overflow: "auto",
+            margin: 0,
+          }}
+        >
+          {JSON.stringify(idpClaims, null, 2)}
         </pre>
       </section>
 
