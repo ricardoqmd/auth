@@ -15,6 +15,13 @@ export interface AuthTokens {
   expiresAt: number; // epoch ms
 }
 
+/**
+ * Standard OIDC user claims, normalized across IDPs.
+ *
+ * Every adapter is responsible for mapping its IDP-specific claims to this
+ * shape. For example, auth-keycloak maps `realm_access.roles` to `roles`.
+ * auth-entra (future) maps the `roles` claim directly.
+ */
 export interface AuthUserClaims {
   /** Subject — unique user ID */
   sub?: string;
@@ -24,26 +31,23 @@ export interface AuthUserClaims {
   name?: string;
   /** Email */
   email?: string;
-  /** Realm-level roles (Keycloak) */
-  realm_access?: { roles: string[] };
-  /** Per-resource roles (Keycloak) */
-  resource_access?: Record<string, { roles: string[] }>;
+  /** Normalized list of role strings.
+   * Each adapter maps its native role representation to this universal field.
+   */
+  roles?: string[];
   /** Standard expiration claim — epoch seconds */
   exp?: number;
   /** Standard issued-at claim — epoch seconds */
   iat?: number;
-  /** Allow extra claims without losing typing */
-  [key: string]: unknown;
 }
 
-export interface AuthInitResult {
+export interface AuthInitResult<TIdpClaims = unknown>{
   authenticated: boolean;
   token?: string;
   refreshToken?: string;
   expiresAt?: number;
-  tokenParsed?: AuthUserClaims;
-  realmRoles?: string[];
-  resourceRoles?: Record<string, { roles: string[] }>;
+  user?: AuthUserClaims;
+  idpClaims?: TIdpClaims;
 }
 
 /** Options accepted by AuthProvider.logout() on a per-call basis. */
@@ -60,8 +64,8 @@ export interface LogoutOptions {
  * Adapter contract — implement this to plug any IDP into the state machine.
  * Reference implementation: @ricardoqmd/auth-keycloak
  */
-export interface AuthProvider {
-  init(): Promise<AuthInitResult>;
+export interface AuthProvider<TIdpClaims = unknown> {
+  init(): Promise<AuthInitResult<TIdpClaims>>;
   login(): Promise<void>;
   logout(options?: LogoutOptions): Promise<void>;
   refreshToken(minValidity?: number): Promise<AuthTokens | null>;

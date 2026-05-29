@@ -11,7 +11,6 @@ import type {
   AuthInitResult,
   AuthProvider,
   AuthTokens,
-  AuthUserClaims,
   LogoutOptions,
 } from '@ricardoqmd/auth-core';
 
@@ -73,6 +72,61 @@ export interface KeycloakProviderOptions {
   logoutRedirectUri?: string;
 }
 
+/**
+ * Keycloak-specific claims found in the parsed token.
+ *
+ * Use this type when calling `useAuth<KeycloakIdpClaims>()` or
+ * `createAuthMachine<KeycloakIdpClaims>(provider)` to get autocomplete
+ * for Keycloak-native features like resource_access and realm_access.
+ *
+ * @example
+ * ```ts
+ * const auth = useAuth<KeycloakIdpClaims>();
+ * const adminRoles = auth.idpClaims?.resource_access?.['my-app']?.roles;
+ * ```
+ */
+export interface KeycloakIdpClaims {
+  /** Roles assigned at the realm level. */
+  realm_access?: { roles: string[] };
+  /** Roles assigned per resource (client). */
+  resource_access?: Record<string, { roles: string[] }>;
+  /** Subject — unique user ID */
+  sub?: string;
+  /** Preferred username from Keycloak */
+  preferred_username?: string;
+  /** Full name */
+  name?: string;
+  /** Email */
+  email?: string;
+  /** Authorized party (client ID that issued the token) */
+  azp?: string;
+  /** Session state ID from Keycloak */
+  session_state?: string;
+  /** Standard expiration claim — epoch seconds */
+  exp?: number;
+  /** Standard issued-at claim — epoch seconds */
+  iat?: number;
+  /** Allow extra claims without losing typing */
+  [key: string]: unknown;
+}
+
+/**
+ * Checks if the parsed claims contain a specific role within a specific resource (client).
+ *
+ * @example
+ * ```ts
+ * const auth = useAuth<KeycloakIdpClaims>();
+ * const canEdit = hasResourceRole(auth.idpClaims, 'my-app', 'editor');
+ * ```
+ */
+export function hasResourceRole(
+  claims: KeycloakIdpClaims | null,
+  resource: string,
+  role: string
+): boolean {
+  return claims?.resource_access?.[resource]?.roles?.includes(role) ?? false;
+}
+
 // ============================================================================
 // Factory
 // ============================================================================
@@ -96,7 +150,9 @@ export interface KeycloakProviderOptions {
  * const machine = createAuthMachine(provider);
  * ```
  */
-export function createKeycloakProvider(options: KeycloakProviderOptions): AuthProvider {
+export function createKeycloakProvider(
+  options: KeycloakProviderOptions
+): AuthProvider<KeycloakIdpClaims> {
   const kc = new Keycloak({
     url: options.config.url,
     realm: options.config.realm,
@@ -117,7 +173,7 @@ export function createKeycloakProvider(options: KeycloakProviderOptions): AuthPr
   // is still in flight (flag = false). The correct fix is to cache the in-flight
   // promise itself — any concurrent or subsequent call joins the same promise
   // rather than starting a new kc.init().
-  let initPromise: Promise<AuthInitResult> | null = null;
+  let initPromise: Promise<AuthInitResult<KeycloakIdpClaims>> | null = null;
 
   return {
     /**
@@ -136,12 +192,12 @@ export function createKeycloakProvider(options: KeycloakProviderOptions): AuthPr
      *   the OIDC discovery document cannot be fetched. The machine maps this to
      *   `INIT_FAILED`.
      */
-    init(): Promise<AuthInitResult> {
+    init(): Promise<AuthInitResult<KeycloakIdpClaims>> {
       if (initPromise !== null) {
         return initPromise;
       }
 
-      initPromise = (async (): Promise<AuthInitResult> => {
+      initPromise = (async (): Promise<AuthInitResult<KeycloakIdpClaims>> => {
         const authenticated = await kc.init({
           onLoad: options.onLoad ?? 'login-required',
           checkLoginIframe: options.checkLoginIframe ?? false,
@@ -160,9 +216,16 @@ export function createKeycloakProvider(options: KeycloakProviderOptions): AuthPr
           // keycloak-js exposes `exp` in epoch seconds; the contract uses epoch ms.
           expiresAt:
             kc.tokenParsed?.exp !== undefined ? kc.tokenParsed.exp * 1000 : undefined,
-          tokenParsed: kc.tokenParsed as AuthUserClaims | undefined,
-          realmRoles: kc.tokenParsed?.realm_access?.roles ?? [],
-          resourceRoles: kc.tokenParsed?.resource_access ?? {},
+          user: {
+            sub: kc.tokenParsed?.sub,
+            preferred_username: kc.tokenParsed?.preferred_username,
+            name: kc.tokenParsed?.name,
+            email: kc.tokenParsed?.email,
+            roles: kc.tokenParsed?.realm_access?.roles ?? [],
+            exp: kc.tokenParsed?.exp,
+            iat: kc.tokenParsed?.iat,
+          },
+          idpClaims: kc.tokenParsed as KeycloakIdpClaims | undefined,
         };
       })();
 

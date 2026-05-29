@@ -24,20 +24,20 @@ import {
 // ============================================================================
 
 /** The XState machine produced by createAuthMachine. */
-type AuthMachine = ReturnType<typeof createAuthMachine>;
+type AuthMachine<TIdpClaims> = ReturnType<typeof createAuthMachine<TIdpClaims>>;
 
 // Derive snapshot and send types from useMachine rather than importing directly
 // from xstate, which is not a declared dependency of this package (it is a peer
 // of @xstate/react and not directly accessible under pnpm's strict hoisting).
-type UseMachineReturn = ReturnType<typeof useMachine<AuthMachine>>;
+type UseMachineReturn<TIdpClaims> = ReturnType<typeof useMachine<AuthMachine<TIdpClaims>>>;
 
 // ============================================================================
 // Internal context shape — not part of the public API
 // ============================================================================
 
-interface AuthContextValue {
-  snapshot: UseMachineReturn[0];
-  send: UseMachineReturn[1];
+interface AuthContextValue<TIdpClaims = unknown> {
+  snapshot: UseMachineReturn<TIdpClaims>[0];
+  send: UseMachineReturn<TIdpClaims>[1];
 }
 
 // ============================================================================
@@ -45,7 +45,7 @@ interface AuthContextValue {
 // ============================================================================
 
 /** Shape returned by useAuth(). */
-export interface AuthState {
+export interface AuthState<TIdpClaims = unknown> {
   /** True while the machine is in the `initializing` or `loggingOut` state. */
   isLoading: boolean;
   /** True when the machine is in the `authenticated` compound state. */
@@ -54,6 +54,8 @@ export interface AuthState {
   token: string | null;
   /** Decoded token claims, or null when not authenticated. */
   user: AuthUserClaims | null;
+  /** IDP-specific claims. Type narrows based on TIdpClaims generic. */
+  idpClaims: TIdpClaims | null;
   /** Non-null when the machine is in the `error` state. */
   error: Error | null;
   /** Sends the LOGOUT event to the machine, triggering the logout flow. */
@@ -62,11 +64,9 @@ export interface AuthState {
   hasRole: (role: string) => boolean;
   /** Returns true if the user has at least one of the given realm roles. */
   hasAnyRole: (roles: string[]) => boolean;
-  /** Returns true if the user has `role` within the `resource` client roles. */
-  hasResourceRole: (resource: string, role: string) => boolean;
 }
 
-export interface AuthProviderProps {
+export interface AuthProviderProps<TIdpClaims = unknown> {
   /**
    * Adapter instance — typically from createKeycloakProvider().
    *
@@ -103,7 +103,7 @@ export interface AuthProviderProps {
    * }
    * ```
    */
-  provider: IAuthProvider;
+  provider: IAuthProvider<TIdpClaims>;
   /** Rendered while the auth flow is in `initializing`, `loggingOut`, or
    *  `unauthenticated` (when redirecting). Defaults to null (blank). */
   loadingComponent?: React.ReactNode;
@@ -129,25 +129,28 @@ export interface AuthProviderProps {
 // Internal context — not exported; accessed only via useAuth()
 // ============================================================================
 
-const AuthContext = React.createContext<AuthContextValue | null>(null);
+const AuthContext = React.createContext<AuthContextValue<unknown> | null>(null);
 
 // ============================================================================
 // AuthProvider
 // ============================================================================
 
-export function AuthProvider({
+export function AuthProvider<TIdpClaims = unknown>({
   provider,
   children,
   loadingComponent,
   errorComponent,
   renderOnUnauthenticated = false,
-}: AuthProviderProps): React.JSX.Element {
+}: AuthProviderProps<TIdpClaims>): React.JSX.Element {
   // Memoize the machine so its `config` reference is stable across renders.
   // useIdleActorRef (inside useMachine) compares logic.config by reference on
   // every render; a new object each render would call setCurrent() during render
   // and trigger an infinite re-render loop. provider is stable (module-level),
   // so this memo only runs once per component lifecycle.
-  const machine = React.useMemo(() => createAuthMachine(provider), [provider]);
+  const machine = React.useMemo(
+    () => createAuthMachine<TIdpClaims>(provider),
+    [provider]
+  );
   const [snapshot, send] = useMachine(machine);
 
   // Send INIT once on mount to kick off the Keycloak initialization flow.
@@ -186,7 +189,7 @@ export function AuthProvider({
   }
 
   return (
-    <AuthContext.Provider value={{ snapshot, send }}>
+    <AuthContext.Provider value={{ snapshot, send } as AuthContextValue<unknown>}>
       {children}
     </AuthContext.Provider>
   );
@@ -197,11 +200,26 @@ export function AuthProvider({
 // ============================================================================
 
 /**
- * Returns the current authentication state and RBAC helpers.
+ * Returns the current authentication state and helpers for the authenticated session.
  *
  * Must be called inside a component that is a descendant of <AuthProvider>.
+ *
+ * @template TIdpClaims - Optional type narrowing for `idpClaims`. Pass the
+ *   specific IDP claims type (e.g. `KeycloakIdpClaims` from auth-keycloak)
+ *   to get autocomplete and type safety on IDP-specific token contents.
+ *
+ * @example
+ * ```tsx
+ * // Without type narrowing (idpClaims is `unknown`)
+ * const auth = useAuth();
+ *
+ * // With Keycloak claims typed
+ * import type { KeycloakIdpClaims } from '@ricardoqmd/auth-keycloak';
+ * const auth = useAuth<KeycloakIdpClaims>();
+ * const adminRoles = auth.idpClaims?.resource_access?.['my-app']?.roles;
+ * ```
  */
-export function useAuth(): AuthState {
+export function useAuth<TIdpClaims = unknown>(): AuthState<TIdpClaims> {
   const ctx = React.useContext(AuthContext);
   if (ctx === null) {
     throw new Error(
@@ -232,30 +250,24 @@ export function useAuth(): AuthState {
   }, [send]);
 
   const hasRole = React.useCallback(
-    (role: string) => context.realmRoles.includes(role),
-    [context.realmRoles],
+    (role: string) => context.user?.roles?.includes(role) ?? false,
+    [context.user],
   );
 
   const hasAnyRole = React.useCallback(
-    (roles: string[]) => roles.some((r) => context.realmRoles.includes(r)),
-    [context.realmRoles],
-  );
-
-  const hasResourceRole = React.useCallback(
-    (resource: string, role: string) =>
-      context.resourceRoles[resource]?.roles.includes(role) ?? false,
-    [context.resourceRoles],
+    (roles: string[]) => roles.some((r) => context.user?.roles?.includes(r) ?? false),
+    [context.user],
   );
 
   return {
     isAuthenticated,
     isLoading,
     token: context.token,
-    user: context.tokenParsed,
+    user: context.user,
+    idpClaims: context.idpClaims as TIdpClaims | null,
     error,
     logout,
     hasRole,
     hasAnyRole,
-    hasResourceRole,
   };
 }
