@@ -1,5 +1,11 @@
 # @ricardoqmd/auth-core
 
+## 0.2.1
+
+### Patch Changes
+
+- Refresh package README and align docs with v0.2.0 (no API changes)
+
 ## 0.2.0
 
 ### Minor Changes
