@@ -63,7 +63,7 @@ This split allows:
 ### State machine
 - **XState v5** (not v4). API significantly different from v4, do not mix.
 - Machine lives in `auth-core/src/machine.ts`, framework-agnostic.
-- States planned: idle → initializing → authenticated/unauthenticated → refreshing → loggingOut → error.
+- States: `idle → initializing → authenticated (active | refreshing) | unauthenticated → loggingOut → error`. `refreshing` is a sub-state of `authenticated`, not top-level.
 
 ### Identity provider
 - **Keycloak server >=26** (LTS). Tested against 26.6.x.
@@ -91,58 +91,116 @@ Unlike libraries that show a "Login" button, this package defaults to:
 
 If a consumer wants the "button login" behavior, they can override with `onLoad: 'check-sso'`.
 
-## Current state (as of initial scaffold)
+## Current state (as of v0.2.0, published 2026-05-29)
 
 ### What's done
 - ✅ Monorepo scaffold: pnpm workspaces, TypeScript references, tsup configs
-- ✅ Three packages exist with skeleton implementations only
-- ✅ Demo Next.js 14 app in `apps/demo` consuming the packages via workspace
+- ✅ Three packages implemented end-to-end with real XState machine, Keycloak
+     adapter, and React/Next.js bindings
+- ✅ Demo Next.js app in `apps/demo` authenticating successfully against
+     local Keycloak 26
 - ✅ Docker Compose with Keycloak 26.6, realm `demo` preconfigured
-- ✅ Initial commit pushed to GitHub main branch
-- ✅ Changesets configured with linked versioning
-- ✅ MIT license, public repo
+- ✅ All three packages published to npm at v0.2.0:
+  - `@ricardoqmd/auth-core@0.2.0`
+  - `@ricardoqmd/auth-keycloak@0.2.0`
+  - `@ricardoqmd/auth-nextjs@0.2.0`
+- ✅ 16 unit tests across the three packages (passing)
+- ✅ GitHub Actions CI: tests run on every PR to `main`
+- ✅ Branch protection ruleset blocking merges without green CI
+- ✅ Changesets configured with linked versioning, MIT-licensed
+- ✅ IDP-agnostic refactor: generic `idpClaims<TIdpClaims>`, universal
+     `user.roles[]` field, `hasResourceRole` moved to adapter package
+- ✅ Package READMEs reflecting v0.2.0 API
 
-### What's NOT done yet
-- ❌ Real XState machine implementation in `auth-core/src/machine.ts` (just a stub)
-- ❌ Real Keycloak adapter in `auth-keycloak/src/index.ts` (just a stub)
-- ❌ Real React hooks in `auth-nextjs/src/index.tsx` (just a stub)
-- ❌ Tests (Vitest configured but no tests written)
-- ❌ End-to-end test of the demo app actually authenticating
-- ❌ First publish to npm (account exists but not yet published)
+### What's NOT done yet (planned for v0.3.0 → v1.0.0)
+- ❌ Coverage at 70% (next: v0.3.0)
+- ❌ Coverage at 80% (final: v1.0.0)
+- ❌ API surface review marking `@internal` vs public exports
+- ❌ Comprehensive documentation site (deferred to v1.0.0)
+- ❌ Migration guides between minors
 
-## Public API contract (DO NOT change without major version bump)
+### Out of scope until post-v1.0.0
+- `@ricardoqmd/auth-nextjs-ssr` — server-side middleware + JWT validation
+- `@ricardoqmd/auth-vue` — Vue 3 bindings
+- `@ricardoqmd/auth-entra` — Microsoft Entra ID adapter
+- `@ricardoqmd/auth-cognito` — AWS Cognito adapter
+- `@ricardoqmd/auth-policy` — PDP/PEP pattern (separate from main packages)
 
-Once v1.0.0 is released, these are the public contracts. Changing them requires major bump:
+## Public API contract (v0.2.0; subject to change until v1.0.0)
+
+Once v1.0.0 is released, these are the public contracts. Changing them requires major bump.
 
 ### From `@ricardoqmd/auth-core`
 ```typescript
-export interface AuthProvider {
+export interface AuthProvider<TIdpClaims = unknown> {
   init(): Promise<AuthInitResult>;
   login(): Promise<void>;
-  logout(): Promise<void>;
+  logout(options?: LogoutOptions): Promise<void>;
   refreshToken(minValidity?: number): Promise<AuthTokens | null>;
 }
 
-export interface AuthInitResult { ... }
-export interface AuthTokens { ... }
-export interface AuthUserClaims { ... }
+export interface AuthInitResult<TIdpClaims = unknown> {
+  authenticated: boolean;
+  tokens?: AuthTokens;
+  user?: AuthUserClaims;
+  idpClaims?: TIdpClaims;
+}
+
+export interface AuthUserClaims {
+  sub?: string;                  // optional — not all tokens include it
+  preferred_username?: string;
+  name?: string;
+  email?: string;
+  roles?: string[];              // universal OIDC field; adapters map into this
+  exp?: number;
+  iat?: number;
+}
+
+export interface AuthTokens {
+  token: string;                 // access token
+  refreshToken: string;          // refresh token
+  expiresAt: number;             // epoch ms (not seconds)
+}
+
+export interface LogoutOptions {
+  redirectUri?: string;
+}
 ```
 
 ### From `@ricardoqmd/auth-keycloak`
 ```typescript
-export function createKeycloakProvider(options: KeycloakProviderOptions): AuthProvider;
-export interface KeycloakProviderConfig { url, realm, clientId }
-export interface KeycloakProviderOptions { config, onLoad?, ... }
+export function createKeycloakProvider(
+  options: KeycloakProviderOptions
+): AuthProvider<KeycloakIdpClaims>;
+
+export interface KeycloakIdpClaims {
+  realm_access?: { roles: string[] };
+  resource_access?: Record<string, { roles: string[] }>;
+}
+
+export function hasResourceRole(
+  claims: KeycloakIdpClaims | null,
+  resource: string,
+  role: string
+): boolean;
 ```
 
 ### From `@ricardoqmd/auth-nextjs`
 ```typescript
 export function AuthProvider(props: AuthProviderProps): JSX.Element;
-export function useAuth(): AuthState;
 
-export interface AuthState {
-  isAuthenticated, isLoading, token, user, error,
-  logout, hasRole, hasAnyRole, hasResourceRole
+export function useAuth<TIdpClaims = unknown>(): AuthState<TIdpClaims>;
+
+export interface AuthState<TIdpClaims = unknown> {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  token: string | null;
+  user: AuthUserClaims | null;
+  idpClaims: TIdpClaims | null;
+  error: Error | null;
+  logout: () => void;
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
 }
 ```
 
@@ -169,18 +227,8 @@ export interface AuthState {
 ### Documentation
 - Each package has its own `README.md` with: install, quick start, API reference, license.
 - Inline JSDoc on all public exports.
-- Major architectural decisions documented in `docs/decisions/` as ADRs.
-
-## Out of scope (planned for later)
-
-- **`@ricardoqmd/auth-nextjs-ssr`** (planned v0.3.0+): middleware + server-side JWT validation
-  using `jose` for routes that need server-rendered protection.
-- **`@ricardoqmd/auth-policy`** (planned, optional, separate from main packages): PDP/PEP
-  pattern client for organizations using externalized authorization. Specific to advanced
-  use cases like the owner's government org architecture.
-- **Vue/Svelte/Solid bindings**: only after Next.js is solid and there's demand.
-- **Multi-realm support**: not v1.0.0 priority.
-- **Auth0 / Cognito adapters**: only after Keycloak adapter is mature.
+- Architectural decisions recorded as ADRs in `docs/decisions/`.
+- Session history and milestone log in `docs/PROGRESS.md`.
 
 ## Working with this codebase
 
@@ -211,14 +259,16 @@ pnpm demo  # http://localhost:3000
 ### Common pitfalls
 - After editing `auth-core`, restart TS server in your IDE if types don't propagate.
 - If `pnpm install` complains about peer deps, set `auto-install-peers=true` (already in `.npmrc`).
-- Demo app uses `transpilePackages` in `next.config.js` to consume workspace packages directly
-  without requiring a build step in development.
+- The demo app (`apps/demo`) uses `transpilePackages` in `next.config.js` so it can consume
+  workspace packages without a prior build step during local development. This is a monorepo
+  dev convenience — published consumers do NOT need `transpilePackages` (the packages ship
+  dual ESM+CJS and Next.js 14+ resolves them correctly out of the box).
 
 ## Related docs
 
 - `README.md` — public-facing project description
 - `docs/PROGRESS.md` — running log of decisions and milestones (read for project history)
-- `docs/decisions/` — ADRs for major architectural decisions
+- `docs/decisions/` — Architecture Decision Records (ADR-001 through ADR-005)
 - Each `packages/*/README.md` — package-specific documentation
 
 ## When in doubt
