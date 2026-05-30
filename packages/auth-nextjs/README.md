@@ -56,20 +56,44 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```tsx
 "use client";
 import { useAuth } from "@ricardoqmd/auth-nextjs";
+import { hasResourceRole } from "@ricardoqmd/auth-keycloak";
+import type { KeycloakIdpClaims } from "@ricardoqmd/auth-keycloak";
 
 export function Dashboard() {
-  const { user, token, logout, hasRole, hasAnyRole, hasResourceRole } = useAuth();
+  const { user, token, logout, hasRole, hasAnyRole, idpClaims } =
+    useAuth<KeycloakIdpClaims>();
 
   return (
     <>
       <p>Welcome, {user?.preferred_username}</p>
       {hasRole("admin") && <AdminPanel />}
-      {hasResourceRole("my-app", "editor") && <EditButton />}
+      {hasResourceRole(idpClaims, "my-app", "editor") && <EditButton />}
       <button onClick={logout}>Sign out</button>
     </>
   );
 }
 ```
+
+### IDP-specific claims (typed)
+
+`useAuth()` is generic over the IDP claims shape. If you want typed access to provider-specific fields, pass your adapter's claims interface:
+
+```tsx
+"use client";
+import { useAuth } from "@ricardoqmd/auth-nextjs";
+import type { KeycloakIdpClaims } from "@ricardoqmd/auth-keycloak";
+
+export function MyComponent() {
+  const { idpClaims } = useAuth<KeycloakIdpClaims>();
+
+  // idpClaims is now typed as KeycloakIdpClaims | null
+  // You can access realm_access, resource_access, etc. with full type safety.
+  const realmRoles = idpClaims?.realm_access?.roles ?? [];
+  return <p>Realm roles: {realmRoles.join(", ")}</p>;
+}
+```
+
+For common role checks, use the universal `hasRole()` / `hasAnyRole()` exposed by the hook. For provider-specific checks (e.g., Keycloak's resource roles), import dedicated utilities from your adapter package.
 
 ## API
 
@@ -82,21 +106,27 @@ export function Dashboard() {
 | `errorComponent` | `(error: Error) => ReactNode` | `null` | Shown when initialization fails |
 | `renderOnUnauthenticated` | `boolean` | `false` | Render children when unauthenticated (for `check-sso` flows with a login button) |
 
-### `useAuth()`
+### `useAuth<TIdpClaims>()`
 
-Returns an `AuthState` object:
+Returns an `AuthState<TIdpClaims>` object. The generic `TIdpClaims` defaults to `unknown` — pass your adapter's claims interface for typed access to IDP-specific fields:
+
+```tsx
+const { idpClaims } = useAuth<KeycloakIdpClaims>();
+```
 
 | Field | Type | Description |
 |---|---|---|
 | `isAuthenticated` | `boolean` | True when the machine is in the `authenticated` state |
 | `isLoading` | `boolean` | True during `initializing` or `loggingOut` transitions |
 | `token` | `string \| null` | Raw JWT access token |
-| `user` | `AuthUserClaims \| null` | Decoded token claims (`preferred_username`, `email`, `name`, `sub`, …) |
+| `user` | `AuthUserClaims \| null` | Decoded standard OIDC claims (`preferred_username`, `email`, `name`, `sub`, `roles`, …) |
+| `idpClaims` | `TIdpClaims \| null` | IDP-specific token claims. Type is generic — pass your IDP's claims interface to `useAuth<T>()`. Use this to access provider-specific fields (e.g., Keycloak's `resource_access`). |
 | `error` | `Error \| null` | Set when initialization or token refresh fails |
 | `logout` | `() => void` | Triggers the logout flow |
-| `hasRole` | `(role: string) => boolean` | Check realm-level role |
-| `hasAnyRole` | `(roles: string[]) => boolean` | True if user has at least one of the given realm roles |
-| `hasResourceRole` | `(resource: string, role: string) => boolean` | Check client-level role for a specific resource |
+| `hasRole` | `(role: string) => boolean` | Check if user has a role in the universal `user.roles` array |
+| `hasAnyRole` | `(roles: string[]) => boolean` | True if user has at least one of the given roles |
+
+For IDP-specific role checks (e.g., Keycloak's resource roles), import dedicated utilities from your adapter package. See [`@ricardoqmd/auth-keycloak`](https://www.npmjs.com/package/@ricardoqmd/auth-keycloak) for `hasResourceRole()`.
 
 ## Troubleshooting
 
@@ -135,6 +165,10 @@ rm -rf .next node_modules/.cache
 npm run dev
 ```
 
+## Status
+
+**0.2.0** — Public API approaching stability. Reserve 1.0.0 expectations until announced.
+
 ## License
 
-MIT © ricardoqmd
+MIT © [ricardoqmd](https://github.com/ricardoqmd)

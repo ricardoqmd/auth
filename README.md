@@ -2,6 +2,7 @@
 
 > Reusable authentication primitives for Next.js apps using Keycloak — designed for SPAs, with a clean state machine at the core and pluggable adapters.
 
+[![CI](https://github.com/ricardoqmd/auth/actions/workflows/test.yml/badge.svg)](https://github.com/ricardoqmd/auth/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![pnpm](https://img.shields.io/badge/pnpm-9-orange)](https://pnpm.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
@@ -74,13 +75,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
 ```tsx
 // Any Client Component inside <Providers>
 import { useAuth } from "@ricardoqmd/auth-nextjs";
+import { hasResourceRole } from "@ricardoqmd/auth-keycloak";
+import type { KeycloakIdpClaims } from "@ricardoqmd/auth-keycloak";
 
 export function Dashboard() {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout, hasRole, idpClaims } = useAuth<KeycloakIdpClaims>();
+
   return (
     <>
       <p>Welcome, {user?.preferred_username}</p>
       {hasRole("admin") && <AdminPanel />}
+      {hasResourceRole(idpClaims, "my-app", "editor") && <EditButton />}
       <button onClick={logout}>Sign out</button>
     </>
   );
@@ -138,10 +143,12 @@ pnpm changeset    # record a release-worthy change
 
 ## Roadmap
 
-- **v0.1.0** ✅ — usable end-to-end: redirect-on-boot, useAuth, RBAC helpers, demo app working against local Keycloak. Published to npm.
-- **v0.2.0** — robust XState tests, error edge cases, refresh-token race conditions, GitHub Actions CI.
-- **v0.3.0** — `auth-nextjs-ssr` package: middleware + JWT validation against JWKS for server components / route handlers.
-- **v1.0.0** — stable public API, full docs site, migration guides.
+- **v0.1.0** ✅ — first publishable version: redirect-on-boot, `useAuth`, RBAC helpers, working demo against local Keycloak.
+- **v0.2.0** ✅ — IDP-agnostic refactor: generic `idpClaims<T>`, universal `user.roles[]`, `hasResourceRole` moved to adapter package. Tests + GitHub Actions CI.
+- **v0.3.0** — coverage at 70%, API surface review.
+- **v1.0.0** — coverage at 80%, public API frozen, full documentation.
+
+Post-v1.0.0 expansions (no fixed date — driven by demand): SSR support, additional IDP adapters (Entra ID, Cognito, Auth0), additional framework bindings (Vue, etc.).
 
 ## License
 

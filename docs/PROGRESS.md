@@ -5,6 +5,147 @@
 
 ---
 
+## 2026-05-29 (Session: v0.2.0 release + README updates)
+
+### Milestone: v0.2.0 published — packages now IDP-agnostic by design
+
+#### What was done
+- Created changeset for v0.2.0, applied `pnpm version-packages`, validated build+test.
+- Published all three packages to npm at v0.2.0.
+- Updated `auth-core/README.md` and `auth-keycloak/README.md` from minimal stubs
+  to full reference documentation reflecting the new API surface.
+- Patched `auth-nextjs/README.md` to remove obsolete API and document the
+  generic `useAuth<TIdpClaims>()` pattern.
+
+#### Key decisions
+
+**1. Granular npm token with 2FA bypass for releases.**
+First publish attempt failed with E403 because the npm account has
+`auth-and-writes` 2FA policy and Changesets' batch publish doesn't prompt for
+OTP interactively. Solution: created a Granular Access Token scoped to the
+`@ricardoqmd` namespace with "Bypass 2FA" enabled, configured via
+`npm config set //registry.npmjs.org/:_authToken`. Token will be rotated
+quarterly.
+
+**2. Documentation precedes additional packages.**
+Originally considered moving forward with `@ricardoqmd/auth-entra` for v0.3.0.
+Decided instead to consolidate v1.0.0 with current packages (Next.js + Keycloak)
+before expanding to new IDPs or frameworks. Cognito/Entra adapters will only
+land when there is a concrete consumer need.
+
+**3. Vue binding is post-v1.0.0, not a blocker.**
+A Vue 3 binding (`auth-vue`) is desirable for the owner's broader portfolio but
+will NOT block v1.0.0. The current scope for v1.0.0 is Next.js + Keycloak with
+stable API and 80% test coverage.
+
+---
+
+## 2026-05-28 (Session: IDP-agnostic refactor for v0.2.0)
+
+### Milestone: core/binding/adapter contracts refactored to support multiple IDPs without breaking the public surface
+
+#### What was done
+- Introduced generic `idpClaims<TIdpClaims>` on `AuthState`, `AuthProvider`,
+  `AuthContext`. Default type: `unknown`. Consumers opt into typed access by
+  passing their IDP's claims interface to bindings: `useAuth<KeycloakIdpClaims>()`.
+- Added universal `user.roles: string[]` field on `AuthUserClaims`. Each adapter
+  is responsible for mapping its IDP-specific claims into this field.
+- Migrated `hasRole()` and `hasAnyRole()` in `auth-core` to operate on the
+  universal `user.roles` instead of Keycloak-specific `realm_access.roles`.
+- Moved `hasResourceRole()` from `auth-core` to `auth-keycloak` as a standalone
+  utility: `hasResourceRole(claims, resource, role)`.
+- Updated `KeycloakIdpClaims` interface and exported it from `auth-keycloak`.
+- All 16 unit tests passing (4 auth-core + 8 auth-keycloak + 4 auth-nextjs).
+- End-to-end validated against Keycloak 26 with realm + resource roles.
+
+#### Key decisions
+
+**1. Generic with `unknown` default, opt-in typing.**
+Considered making `idpClaims` always-typed by exporting a discriminated union,
+but rejected because it would couple `auth-core` to specific IDP shapes. The
+generic with `unknown` default lets `auth-core` remain truly IDP-agnostic while
+adapter consumers get full type safety when they pass the right type parameter.
+
+**2. `user.roles` instead of preserving `realm_access` at the universal layer.**
+Considered keeping Keycloak's `realm_access.roles` shape as the universal
+contract, but this would force every future adapter (Entra ID, Cognito, Auth0)
+to map their roles INTO a Keycloak-flavored structure. Inverted the dependency:
+each adapter maps its specific roles INTO the universal `user.roles` field,
+which is OIDC-standard.
+
+**3. `hasResourceRole` moved out of `useAuth()`.**
+Removed it from the hook's return value because it's specific to Keycloak's
+`resource_access` concept. Other IDPs don't have a direct analog (Cognito has
+groups, Entra has app roles, etc.). Made it a standalone utility importable
+from the adapter package. Consumers who need it: `import { hasResourceRole }
+from '@ricardoqmd/auth-keycloak'`.
+
+#### Migration impact for consumers
+
+Pre-1.0 minor bump with breaking changes (per SemVer pre-release convention).
+Migration:
+
+```tsx
+// BEFORE (v0.1.x)
+const { user, hasRole, hasResourceRole } = useAuth();
+hasResourceRole("my-app", "editor");  // ← method on hook
+
+// AFTER (v0.2.0)
+import { hasResourceRole } from "@ricardoqmd/auth-keycloak";
+import type { KeycloakIdpClaims } from "@ricardoqmd/auth-keycloak";
+
+const { user, hasRole, idpClaims } = useAuth<KeycloakIdpClaims>();
+hasResourceRole(idpClaims, "my-app", "editor");  // ← standalone utility
+```
+
+---
+
+## 2026-05-20 (Session: tests + CI infrastructure)
+
+### Milestone: 16 tests across 3 packages + automated CI on PRs to main
+
+#### What was done
+- Installed Vitest as the unified test runner across all packages.
+- Created per-package `vitest.config.ts`:
+  - `auth-core`: environment `node`, pure logic.
+  - `auth-keycloak`: environment `jsdom` (defensive `window` access in the adapter).
+  - `auth-nextjs`: environment `jsdom`, setup with `@testing-library/jest-dom/vitest`.
+- Wrote tests covering:
+  - `auth-core` (4): state machine transitions for idle, initializing,
+    unauthenticated, and authenticated.active states.
+  - `auth-keycloak` (8): interface contract, idempotency of `init()`, default
+    parameters, defensive `window` access.
+  - `auth-nextjs` (4): provider gating, useAuth states, error outside provider.
+- Created `.github/workflows/test.yml`:
+  - Triggers on PR to `main`.
+  - `pnpm install --frozen-lockfile`, then `pnpm build`, then `pnpm test`.
+  - Caches pnpm store between runs.
+- Configured branch protection ruleset on `main` requiring "Test / Test packages"
+  check to pass before merging.
+- Added `packageManager: "pnpm@9.12.3"` to root `package.json` for reproducibility.
+
+#### Key decisions
+
+**1. `useIdleActorRef` mock pattern via never-resolving Promise.**
+For testing the idempotency guard in `auth-keycloak`, the test needed to assert
+that two calls to `init()` returned the same Promise. Solution: mock `kc.init()`
+with a Promise that never resolves, so both calls find the cached Promise still
+in flight. Same pattern used in `auth-core` for testing state during async
+transitions.
+
+**2. `vi.clearAllMocks()` in `beforeEach` for shared mocks.**
+Adopted as a defensive practice even before tests assert specific call counts.
+Prevents future tests from being polluted by previous test calls when checking
+`toHaveBeenCalledTimes`.
+
+**3. CI build step before test step.**
+Required because workspace packages consume each other via `workspace:*`. Tests
+in `auth-nextjs` import from `@ricardoqmd/auth-core`, which must be built first.
+Without the build step, CI fails with module resolution errors that don't
+reproduce locally (because local dev uses watch-mode rebuilds).
+
+---
+
 ## 2026-05-08 (Session: auth-nextjs README and transpilePackages investigation)
 
 ### Milestone: auth-nextjs README expanded; transpilePackages documented as optional
@@ -270,7 +411,7 @@ same pattern.
 
 ---
 
-## 2026-05-XX (Session: foundations)
+## 2026-05-02 (Session: foundations)
 
 ### Milestone: complete monorepo scaffold + first commit pushed
 
@@ -281,7 +422,7 @@ same pattern.
 - Configured `tsup` for dual ESM+CJS+types output for each package.
 - Set up Changesets with linked versioning across the three publishable packages.
 - Added Docker Compose with Keycloak 26.6 and a preconfigured demo realm.
-- Created `apps/demo` Next.js 14 app consuming the packages via workspace symlinks.
+- Created `apps/demo` Next.js app consuming the packages via workspace symlinks (started on Next.js 14, upgraded to 16.2.6 in v0.1.1).
 - MIT license, public GitHub repo at github.com/ricardoqmd/auth.
 - Initial commit pushed to `main`.
 
@@ -336,7 +477,7 @@ same pattern.
 
 ---
 
-## 2026-05-XX (Session: planning)
+## 2026-05-02 (Session: planning)
 
 ### Milestone: architectural decisions and roadmap
 
