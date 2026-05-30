@@ -1,5 +1,34 @@
 # @ricardoqmd/auth-core
 
+## 0.2.0
+
+### Minor Changes
+
+- Refactor: IDP-agnostic claims via generic `idpClaims<T>`
+
+  BREAKING CHANGE: All state and provider types are now generic.
+
+  What changed:
+
+  - `AuthState<TIdpClaims>`, `AuthProvider<TIdpClaims>`, `AuthContext<TIdpClaims>`
+    are now generic with default `= unknown`.
+  - `user.roles: string[]` is the new universal OIDC field (each adapter maps).
+  - `hasRole()` and `hasAnyRole()` in auth-core operate on `user.roles`.
+  - `hasResourceRole()` moved to auth-keycloak as a standalone utility:
+    `import { hasResourceRole } from '@ricardoqmd/auth-keycloak'`.
+  - `KeycloakIdpClaims` interface exported from auth-keycloak.
+
+  Why:
+
+  - Enables future IDP adapters (Entra ID, Cognito, Auth0) without forced mappings.
+  - Keeps auth-core truly framework- and IDP-agnostic.
+  - Preserves type safety per adapter via TypeScript generics.
+
+  Migration (typed):
+  const { hasRole, idpClaims } = useAuth<KeycloakIdpClaims>();
+
+  Verified end-to-end against Keycloak 26 with realm + resource roles.
+
 ## 0.1.0
 
 ### Minor Changes
