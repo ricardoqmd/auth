@@ -1,6 +1,6 @@
 {
   "name": "@ricardoqmd/auth-keycloak",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Keycloak adapter for @ricardoqmd/auth-core — implements the AuthProvider contract using keycloak-js",
   "keywords": [
     "auth",
