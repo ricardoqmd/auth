@@ -2,7 +2,8 @@
 
 > Reusable authentication primitives for Next.js apps using Keycloak — designed for SPAs, with a clean state machine at the core and pluggable adapters.
 
-[![CI](https://github.com/ricardoqmd/auth/actions/workflows/test.yml/badge.svg)](https://github.com/ricardoqmd/auth/actions/workflows/test.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ricardoqmd_auth&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ricardoqmd_auth)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=ricardoqmd_auth&metric=coverage)](https://sonarcloud.io/summary/new_code?id=ricardoqmd_auth)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![pnpm](https://img.shields.io/badge/pnpm-9-orange)](https://pnpm.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
