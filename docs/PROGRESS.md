@@ -516,42 +516,11 @@ same pattern.
 
 ---
 
-## Project roadmap (planned)
+## Project roadmap
 
-### v0.1.0 — First publishable version (NEXT)
-- [ ] Implement real XState machine in `auth-core/src/machine.ts`
-- [ ] Implement real Keycloak adapter in `auth-keycloak/src/index.ts`
-- [ ] Implement real React bindings in `auth-nextjs/src/index.tsx`
-- [ ] Demo app authenticates end-to-end against local Keycloak
-- [ ] Basic unit tests on the state machine
-- [ ] Publish all three packages to npm
-
-### v0.2.0 — Robustness
-- [ ] Comprehensive XState test coverage with `@xstate/test`
-- [ ] Edge cases: token refresh race conditions, network errors, Keycloak unavailable
-- [ ] CI with GitHub Actions: lint, typecheck, test on PR
-- [ ] E2E test with Playwright against Docker Keycloak
-
-### v0.3.0 — SSR support
-- [ ] New package: `@ricardoqmd/auth-nextjs-ssr`
-- [ ] Middleware factory using `jose` for JWKS validation
-- [ ] Server Component / Route Handler helpers
-
-### v0.5.0 — Stability hardening
-- [ ] Doc site (Nextra or similar)
-- [ ] Migration guides
-- [ ] Troubleshooting guide
-- [ ] At least one external project consuming these packages in production
-
-### v1.0.0 — Stable API contract
-- [ ] Public API frozen for backward compatibility commitments
-- [ ] Comprehensive documentation
-- [ ] Performance benchmarks
-
-### Beyond v1.0.0 — Ecosystem expansion
-- [ ] `@ricardoqmd/auth-policy` (optional, for PDP/PEP pattern users)
-- [ ] `@ricardoqmd/auth-vue` (Vue 3 bindings)
-- [ ] `@ricardoqmd/auth-auth0` (Auth0 adapter)
+The roadmap lives in [`ROADMAP.md`](../ROADMAP.md); rationale in
+[ADR-006](./decisions/006-harden-before-expand.md). This file is the chronological
+log only.
 
 ---
 
@@ -563,7 +532,7 @@ When you complete a milestone or make an architecture decision:
 2. Date format: `2026-05-XX (Session: <topic>)` for sessions, `2026-05-XX` for daily progress.
 3. Sections: Milestone, What was done, Key decisions, Open questions.
 4. Each "Key decision" includes: what was decided, WHY, and what alternative was considered/rejected.
-5. Update the roadmap section if priorities shift.
+5. Update ROADMAP.md if priorities shift.
 
 The "why" matters more than the "what". In 6 months, you (or a new contributor) will not
 remember why a decision was made. The entry should answer the question.
