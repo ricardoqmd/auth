@@ -14,7 +14,7 @@ The chronological history of shipped work lives in
 - [x] **v0.2.1** — documentation: package READMEs refreshed on npm, decision records and community-health files added. (2026-05-30)
 
 ## v0.3.0 — Hardening + API surface review (next)
-
+- [ ] Instrument quality: vitest LCOV coverage + SonarQube Cloud on CI, with a Clean-as-You-Code quality gate (ADR-007).
 - [ ] Raise test coverage to ~70%.
   - [ ] `@xstate/test` coverage on the auth state machine.
   - [ ] Edge cases: token-refresh races, network errors, Keycloak unavailable.

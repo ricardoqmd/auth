@@ -10,6 +10,7 @@ Significant architectural decisions for this project are recorded here using the
 | [ADR-004](./004-idp-agnostic-generic-claims.md) | IDP-agnostic design with generic `idpClaims<TIdpClaims>` | 2026-05-28 | Accepted |
 | [ADR-005](./005-hasresourcerole-as-standalone-utility.md) | `hasResourceRole` as a standalone utility in `auth-keycloak` | 2026-05-28 | Accepted |
 | [ADR-006](./006-harden-before-expand.md) | Harden before expand — v0.3.0 stabilizes, SSR/adapters post-1.0 | 2026-05-30 | Accepted |
+| [ADR-007](./007-sonarcloud-for-public-repo.md) | SonarQube Cloud for the public repo (Clean-as-You-Code gate) | 2026-05-30 | Accepted |
 
 ## Statuses
 
