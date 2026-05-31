@@ -143,12 +143,12 @@ pnpm changeset    # record a release-worthy change
 
 ## Roadmap
 
-- **v0.1.0** ✅ — first publishable version: redirect-on-boot, `useAuth`, RBAC helpers, working demo against local Keycloak.
-- **v0.2.0** ✅ — IDP-agnostic refactor: generic `idpClaims<T>`, universal `user.roles[]`, `hasResourceRole` moved to adapter package. Tests + GitHub Actions CI.
-- **v0.3.0** — coverage at 70%, API surface review.
-- **v1.0.0** — coverage at 80%, public API frozen, full documentation.
+Shipped through **v0.2.1** (IDP-agnostic core, RBAC helpers, tests + CI; all three
+packages on npm). Next is **v0.3.0** — raise test coverage and review the public API
+surface ahead of a frozen 1.0. SSR, additional IDP adapters, and Vue bindings are
+post-1.0 and demand-driven.
 
-Post-v1.0.0 expansions (no fixed date — driven by demand): SSR support, additional IDP adapters (Entra ID, Cognito, Auth0), additional framework bindings (Vue, etc.).
+Full plan: [`ROADMAP.md`](./ROADMAP.md) · Rationale: [ADR-006](./docs/decisions/006-harden-before-expand.md).
 
 ## License
 
