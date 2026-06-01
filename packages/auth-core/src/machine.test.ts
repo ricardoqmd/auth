@@ -49,6 +49,7 @@ describe("createAuthMachine", () => {
     if(actor){
       actor.stop();
     }
+    vi.useRealTimers();
   });
 
   it("starts in the idle state", () => {
@@ -294,6 +295,63 @@ describe("createAuthMachine", () => {
     expect(login).toHaveBeenCalledTimes(1);
     expect(actor.getSnapshot().value).toBe("unauthenticated");
     expect(actor.getSnapshot().context.error).toBeNull();
+  });
+
+  it("times out to NETWORK_ERROR when init() hangs past the operation timeout", async () => {
+    vi.useFakeTimers();
+    const provider = authedProvider({
+      init: () => new Promise(() => {}), // never resolves
+    });
+    actor = createActor(createAuthMachine(provider));
+    actor.start();
+    actor.send({ type: "INIT" });
+
+    await vi.advanceTimersByTimeAsync(30_000); // OPERATION_TIMEOUT_MS
+
+    expect(actor.getSnapshot().value).toBe("error");
+    expect(actor.getSnapshot().context.error?.code).toBe("NETWORK_ERROR");
+  });
+
+  it("times out to NETWORK_ERROR when refreshToken() hangs", async () => {
+    vi.useFakeTimers();
+    const provider = authedProvider({
+      refreshToken: () => new Promise(() => {}), // never resolves
+    });
+    actor = createActor(createAuthMachine(provider));
+    actor.start();
+    actor.send({ type: "INIT" });
+    // Promises resolve on microtasks (not faked), so this flushes init → active.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(actor.getSnapshot().matches({ authenticated: "active" })).toBe(true);
+
+    actor.send({ type: "REFRESH" });
+    await vi.advanceTimersByTimeAsync(30_000); // OPERATION_TIMEOUT_MS
+
+    expect(actor.getSnapshot().value).toBe("error");
+    expect(actor.getSnapshot().context.error?.code).toBe("NETWORK_ERROR");
+  });
+
+  it("proactively refreshes before expiry without an explicit REFRESH event", async () => {
+    vi.useFakeTimers();
+    const provider = authedProvider({
+      // expiresAt ~60s out → proactive refresh fires ~30s later (expiry − 30s buffer)
+      refreshToken: () =>
+        Promise.resolve({
+          token: "auto-access",
+          refreshToken: "auto-refresh",
+          expiresAt: Date.now() + 60_000,
+        }),
+    });
+    actor = createActor(createAuthMachine(provider));
+    actor.start();
+    actor.send({ type: "INIT" });
+    await vi.advanceTimersByTimeAsync(0); // flush init → active
+    expect(actor.getSnapshot().matches({ authenticated: "active" })).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(30_000); // cross the proactive refresh delay
+
+    expect(actor.getSnapshot().matches({ authenticated: "active" })).toBe(true);
+    expect(actor.getSnapshot().context.token).toBe("auto-access");
   });
 
 });
