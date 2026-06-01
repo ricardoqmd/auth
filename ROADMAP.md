@@ -12,24 +12,28 @@ The chronological history of shipped work lives in
 - [x] **v0.1.0** — first publishable version: redirect-on-boot, `useAuth`, RBAC helpers, working demo against local Keycloak. (2026-05-07)
 - [x] **v0.2.0** — IDP-agnostic refactor: generic `idpClaims<T>`, universal `user.roles[]`, `hasResourceRole` moved to the adapter package. Tests + GitHub Actions CI. (2026-05-29)
 - [x] **v0.2.1** — documentation: package READMEs refreshed on npm, decision records and community-health files added. (2026-05-30)
+- [x] **v0.3.0** — hardening + API surface review: coverage ~83% via direct behavior tests on the machine and adapter; structured `AuthError` surfaced to consumers and machine internals (`AuthContext`/`AuthEvent`) hidden (ADR-008); `useAuth().login()` added; SonarQube Cloud quality gate (ADR-007); Node 20/22 CI matrix; de-hardcoded version labels. (2026-06-01)
 
-## v0.3.0 — Hardening + API surface review (next)
-- [x] Instrument quality: vitest LCOV coverage + SonarQube Cloud on CI, with a Clean-as-You-Code quality gate (ADR-007).
-- [ ] Raise test coverage to ~70%.
-  - [ ] `@xstate/test` coverage on the auth state machine.
-  - [ ] Edge cases: token-refresh races, network errors, Keycloak unavailable.
-  - [ ] (optional) Playwright E2E against Dockerized Keycloak.
-- [ ] Public API surface review: mark internals `@internal`; decide what is public before it is frozen.
-- [ ] Settle the supported Node baseline: `engines` and CONTRIBUTING document `>=18.18`, but CI runs Node 20 only. Either add an `18 / 20 / 22` CI matrix or raise the documented floor to 20.
-- [ ] De-hardcode the version label in package READMEs (`**0.2.x**` → `**Pre-1.0**`) so it stops going stale on every release.
+## Toward v1.0.0 — Stable API contract
 
-## v1.0.0 — Stable API contract
+The 1.0 criteria are recorded in [ADR-006](./docs/decisions/006-harden-before-expand.md).
+Status after v0.3.0:
 
-- [ ] ~80% test coverage.
-- [ ] Public API frozen for backward-compatibility commitments.
-- [ ] Complete documentation (candidate: a dedicated docs site).
-- [ ] At least one real consumer in production (platform-react / the RH system).
-- [ ] Performance benchmarks.
+- [x] ~80% test coverage — at ~83%.
+- [ ] **Public API frozen.** Surface reviewed and hardened in
+  [ADR-008](./docs/decisions/008-public-api-surface-for-1.0.md). Remaining: cover
+  the public methods still lacking tests (`logout`, `hasRole`, `hasAnyRole`), do a
+  final no-accidental-exports pass, then declare the freeze in its own ADR.
+- [ ] **Complete documentation.** Polish the per-package READMEs and add a
+  quickstart; turn the demo app into a reference implementation showing
+  `login()`, public/protected routes (a consumer-side route guard), and
+  structured-error handling.
+- [ ] **At least one real consumer in production** (platform-react / the RH
+  system). External gate — paced by those projects, not by this repo. The demo
+  de-risks the integration but does not satisfy this criterion.
+- [ ] **Performance budget.** ADR-006 says "benchmarks"; for a frontend library a
+  bundle-size budget (e.g. `size-limit` in CI) plus documented init/refresh
+  characteristics likely fits better — revisit ADR-006's wording.
 
 ## Post-1.0 — Expansion, demand-driven
 
