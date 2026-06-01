@@ -15,6 +15,7 @@ import * as React from "react";
 import { useMachine } from "@xstate/react";
 import {
   createAuthMachine,
+  type AuthError,
   type AuthProvider as IAuthProvider,
   type AuthUserClaims,
 } from "@ricardoqmd/auth-core";
@@ -56,8 +57,9 @@ export interface AuthState<TIdpClaims = unknown> {
   user: AuthUserClaims | null;
   /** IDP-specific claims. Type narrows based on TIdpClaims generic. */
   idpClaims: TIdpClaims | null;
-  /** Non-null when the machine is in the `error` state. */
-  error: Error | null;
+  /** Structured error when the machine is in the `error` state, else null.
+   *  Branch on `error.code` (e.g. TOKEN_EXPIRED, NETWORK_ERROR) to drive UX. */
+  error: AuthError | null;
   /** Sends the LOGOUT event to the machine, triggering the logout flow. */
   logout: () => void;
   /** Returns true if the authenticated user has `role` in their realm roles. */
@@ -108,8 +110,9 @@ export interface AuthProviderProps<TIdpClaims = unknown> {
    *  `unauthenticated` (when redirecting). Defaults to null (blank). */
   loadingComponent?: React.ReactNode;
   /** Rendered when initialization fails (e.g. IDP unreachable). Receives the
-   *  error so the consumer can show a meaningful message. Defaults to null. */
-  errorComponent?: (error: Error) => React.ReactNode;
+   *  structured AuthError so the consumer can branch on `error.code`
+   *  (NETWORK_ERROR, TOKEN_EXPIRED, INIT_FAILED, ...). Defaults to null. */
+  errorComponent?: (error: AuthError) => React.ReactNode;
   /**
    * When true, renders children in the `unauthenticated` state instead of
    * the loadingComponent.
@@ -171,10 +174,8 @@ export function AuthProvider<TIdpClaims = unknown>({
   // Error state: show errorComponent before the context provider since the
   // machine has no valid auth session to expose.
   if (topState === "error") {
-    const err = snapshot.context.error
-      ? new Error(snapshot.context.error.message)
-      : new Error("Authentication error");
-    return <>{errorComponent?.(err) ?? null}</>;
+    const err = snapshot.context.error;
+    return <>{err ? (errorComponent?.(err) ?? null) : null}</>;
   }
 
   // Gate: hold back children until auth is settled.
@@ -243,7 +244,7 @@ export function useAuth<TIdpClaims = unknown>(): AuthState<TIdpClaims> {
 
   const isLoading = topState === "initializing" || topState === "loggingOut";
 
-  const error = context.error ? new Error(context.error.message) : null;
+  const error = context.error;
 
   const logout = React.useCallback(() => {
     send({ type: "LOGOUT" });

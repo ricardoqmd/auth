@@ -2,7 +2,10 @@ import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import * as React from "react";
 import { describe, expect, it } from "vitest";
 import { AuthProvider, useAuth } from "./index.js";
-import type { AuthProvider as IAuthProvider } from "@ricardoqmd/auth-core";
+import type {
+  AuthError,
+  AuthProvider as IAuthProvider,
+} from "@ricardoqmd/auth-core";
 
 // A provider that never resolves — keeps the machine in 'initializing'.
 // Useful for testing the gated (loading) state.
@@ -17,6 +20,14 @@ const pendingProvider: IAuthProvider = {
 // Lets the machine complete its init flow without needing a real Keycloak server.
 const unauthenticatedProvider: IAuthProvider = {
   init: () => Promise.resolve({ authenticated: false }),
+  login: () => Promise.resolve(),
+  logout: () => Promise.resolve(),
+  refreshToken: () => Promise.resolve(null),
+};
+
+// A provider whose init() rejects — drives the machine into the 'error' state.
+const failingProvider: IAuthProvider = {
+  init: () => Promise.reject(new Error("keycloak unreachable")),
   login: () => Promise.resolve(),
   logout: () => Promise.resolve(),
   refreshToken: () => Promise.resolve(null),
@@ -37,6 +48,28 @@ describe("AuthProvider", () => {
     // Since pendingProvider.init() never resolves, the machine stays in 'initializing'.
     // The gate shows loadingComponent and hides children.
     expect(screen.getByText("Authenticating…")).toBeInTheDocument();
+    expect(screen.queryByText("Authenticated content")).not.toBeInTheDocument();
+  });
+
+  it("passes the structured AuthError to errorComponent when init fails", async () => {
+    render(
+      <AuthProvider
+        provider={failingProvider}
+        errorComponent={(error: AuthError) => (
+          <div>{`${error.code}: ${error.message}`}</div>
+        )}
+      >
+        <div>Authenticated content</div>
+      </AuthProvider>,
+    );
+
+    // init() rejects → machine reaches 'error' with code INIT_FAILED, and the
+    // original message is preserved. errorComponent receives the full AuthError.
+    await waitFor(() => {
+      expect(
+        screen.getByText("INIT_FAILED: keycloak unreachable"),
+      ).toBeInTheDocument();
+    });
     expect(screen.queryByText("Authenticated content")).not.toBeInTheDocument();
   });
 });
