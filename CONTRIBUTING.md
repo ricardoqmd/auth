@@ -200,9 +200,29 @@ Deferred work, known limitations, follow-up PRs.
 
 ### Merge policy
 
-This repo uses **squash-merge** to keep `main` history linear. When squashing, edit the commit message to follow Conventional Commits format — GitHub auto-suggests one from the PR title, clean it up before confirming.
+This repo uses **squash-merge** to keep `main` history linear.
 
-The `Test / Test packages` CI check must pass before merging. Do not merge with red CI.
+**Squash commit title** — must follow Conventional Commits. GitHub pre-fills it
+from the PR title and appends the PR number, e.g.
+`feat: surface structured AuthError and hide machine internals (#20)`. Clean it
+up before confirming if needed.
+
+**Squash commit body (extended description)** — replace GitHub's auto-filled list
+of intermediate commit subjects with a short, durable summary:
+
+- 1-3 bullets of what changed and its user-facing effect
+- a pointer to the relevant ADR, when there is one
+- a `BREAKING CHANGE:` footer when applicable
+
+Do **not** paste the full PR description. The What / Why / How / Validation /
+Notes lives in the PR itself (linked via the `(#NN)`); test output and process
+notes are noise in permanent `git log` history. Versioning is driven by
+Changesets, not by commit messages, so a `BREAKING CHANGE:` footer here is
+informational only — it does not trigger a version bump on its own (the
+changeset does).
+
+The **Build, test & analyze** and **SonarCloud Code Analysis** checks must pass
+before merging. Do not merge with red CI.
 
 ## Versioning and releases
 
