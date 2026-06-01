@@ -1,6 +1,12 @@
-import { render, renderHook, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import * as React from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "./index.js";
 import type {
   AuthError,
@@ -174,6 +180,37 @@ describe("useAuth", () => {
         expect(() => {
           renderHook(() => useAuth())
         }).toThrow("useAuth must be called inside");
+  });
+
+  it("exposes login() which triggers the provider login flow", async () => {
+    const login = vi.fn(() => Promise.resolve());
+    const provider: IAuthProvider = {
+      init: () => Promise.resolve({ authenticated: false }),
+      login,
+      logout: () => Promise.resolve(),
+      refreshToken: () => Promise.resolve(null),
+    };
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }) => (
+        <AuthProvider provider={provider} renderOnUnauthenticated={true}>
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isAuthenticated).toBe(false);
+    });
+
+    // login() sends LOGIN to the machine, which invokes provider.login().
+    act(() => {
+      result.current.login();
+    });
+
+    await waitFor(() => {
+      expect(login).toHaveBeenCalledTimes(1);
+    });
   });
 
 });

@@ -60,6 +60,10 @@ export interface AuthState<TIdpClaims = unknown> {
   /** Structured error when the machine is in the `error` state, else null.
    *  Branch on `error.code` (e.g. TOKEN_EXPIRED, NETWORK_ERROR) to drive UX. */
   error: AuthError | null;
+  /** Triggers the login flow (full-page redirect to the IDP). Use for public
+   *  routes / `check-sso` setups where the app starts unauthenticated and logs
+   *  in on demand (e.g. a "Sign in" button or a route guard). */
+  login: () => void;
   /** Sends the LOGOUT event to the machine, triggering the logout flow. */
   logout: () => void;
   /** Returns true if the authenticated user has `role` in their realm roles. */
@@ -247,6 +251,10 @@ export function useAuth<TIdpClaims = unknown>(): AuthState<TIdpClaims> {
 
   const error = context.error;
 
+  const login = React.useCallback(() => {
+    send({ type: "LOGIN" });
+  }, [send]);
+
   const logout = React.useCallback(() => {
     send({ type: "LOGOUT" });
   }, [send]);
@@ -268,6 +276,7 @@ export function useAuth<TIdpClaims = unknown>(): AuthState<TIdpClaims> {
     user: context.user,
     idpClaims: context.idpClaims as TIdpClaims | null,
     error,
+    login,
     logout,
     hasRole,
     hasAnyRole,
