@@ -72,6 +72,25 @@ describe("AuthProvider", () => {
     });
     expect(screen.queryByText("Authenticated content")).not.toBeInTheDocument();
   });
+
+  it("renders nothing in the error state when no errorComponent is given", async () => {
+    render(
+      <AuthProvider
+        provider={failingProvider}
+        loadingComponent={<div>Loading…</div>}
+      >
+        <div>Authenticated content</div>
+      </AuthProvider>,
+    );
+
+    // Starts gated on loadingComponent; init() rejects → 'error' state, which
+    // renders null (no errorComponent). The only way out of loading for a
+    // failing provider is 'error', so the loading text disappearing confirms it.
+    await waitFor(() => {
+      expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("Authenticated content")).not.toBeInTheDocument();
+  });
 });
 
 describe("useAuth", () => {

@@ -174,8 +174,9 @@ export function AuthProvider<TIdpClaims = unknown>({
   // Error state: show errorComponent before the context provider since the
   // machine has no valid auth session to expose.
   if (topState === "error") {
-    const err = snapshot.context.error;
-    return <>{err ? (errorComponent?.(err) ?? null) : null}</>;
+    // The machine always assigns context.error before entering 'error'.
+    const err = snapshot.context.error as AuthError;
+    return <>{errorComponent?.(err) ?? null}</>;
   }
 
   // Gate: hold back children until auth is settled.
