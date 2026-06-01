@@ -11,6 +11,7 @@ Significant architectural decisions for this project are recorded here using the
 | [ADR-005](./005-hasresourcerole-as-standalone-utility.md) | `hasResourceRole` as a standalone utility in `auth-keycloak` | 2026-05-28 | Accepted |
 | [ADR-006](./006-harden-before-expand.md) | Harden before expand — v0.3.0 stabilizes, SSR/adapters post-1.0 | 2026-05-30 | Accepted |
 | [ADR-007](./007-sonarcloud-for-public-repo.md) | SonarQube Cloud for the public repo (Clean-as-You-Code gate) | 2026-05-30 | Accepted |
+| [ADR-008](./008-public-api-surface-for-1.0.md) | Public API surface for 1.0 — surface `AuthError`, hide machine internals | 2026-06-01 | Accepted |
 
 ## Statuses
 

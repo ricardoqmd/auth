@@ -76,4 +76,4 @@ export interface AuthProvider<TIdpClaims = unknown> {
 // ============================================================================
 
 export { createAuthMachine } from "./machine.js";
-export type { AuthContext, AuthError, AuthEvent } from "./machine.js";
+export type { AuthError } from "./machine.js";

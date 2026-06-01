@@ -15,6 +15,7 @@ export interface AuthError {
   message: string;
 }
 
+/** @internal Machine context shape — implementation detail, not public API. */
 export interface AuthContext<TIdpClaims = unknown> {
   token: string | null;
   refreshToken: string | null;
@@ -25,6 +26,7 @@ export interface AuthContext<TIdpClaims = unknown> {
   error: AuthError | null;
 }
 
+/** @internal Machine event union — implementation detail, not public API. */
 export type AuthEvent =
   | { type: 'INIT' }
   | { type: 'LOGIN' }
