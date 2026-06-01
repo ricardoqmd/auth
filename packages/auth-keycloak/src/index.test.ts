@@ -9,7 +9,7 @@ let mockKeycloakInstance: {
   updateToken: ReturnType<typeof vi.fn>;
   token: string | undefined;
   refreshToken: string | undefined;
-  tokenParsed: undefined;
+  tokenParsed: Record<string, unknown> | undefined;
 }
 
 
@@ -32,7 +32,7 @@ vi.mock("keycloak-js", () => {
     updateToken = vi.fn(() => Promise.resolve(true));
     token: string | undefined = undefined;
     refreshToken: string | undefined = undefined;
-    tokenParsed: undefined = undefined;
+    tokenParsed: Record<string, unknown> | undefined = undefined;
 
     // When the adapter creates a `new Keycloak(...)`,
     // it is stored in the external variable mockKeycloakInstance
@@ -92,6 +92,96 @@ describe("createKeycloakProvider", () => {
       silentCheckSsoRedirectUri: undefined
     });
 
+  });
+
+  it("init() returns { authenticated: false } when Keycloak reports not authenticated", async () => {
+    const provider = createKeycloakProvider(testConfig);
+    mockKeycloakInstance.init.mockResolvedValueOnce(false);
+
+    const result = await provider.init();
+    expect(result).toEqual({ authenticated: false });
+  });
+
+  it("init() maps Keycloak token data into an authenticated result", async () => {
+    const provider = createKeycloakProvider(testConfig);
+    mockKeycloakInstance.init.mockResolvedValueOnce(true);
+    mockKeycloakInstance.token = "access-token";
+    mockKeycloakInstance.refreshToken = "refresh-token";
+    mockKeycloakInstance.tokenParsed = {
+      sub: "user-1",
+      preferred_username: "ricardo",
+      email: "r@example.com",
+      realm_access: { roles: ["app-user"] },
+      exp: 2_000_000,
+      iat: 1_000_000,
+    };
+
+    const result = await provider.init();
+
+    expect(result.authenticated).toBe(true);
+    expect(result.token).toBe("access-token");
+    expect(result.refreshToken).toBe("refresh-token");
+    // keycloak exp is epoch seconds; the contract uses epoch ms.
+    expect(result.expiresAt).toBe(2_000_000 * 1000);
+    expect(result.user?.sub).toBe("user-1");
+    expect(result.user?.roles).toEqual(["app-user"]);
+  });
+
+  it("login() delegates to kc.login()", async () => {
+    const provider = createKeycloakProvider(testConfig);
+    await provider.login();
+    expect(mockKeycloakInstance.login).toHaveBeenCalledTimes(1);
+  });
+
+  it("logout() uses the per-call redirectUri when provided", async () => {
+    const provider = createKeycloakProvider(testConfig);
+    await provider.logout({ redirectUri: "https://app.example.com/bye" });
+    expect(mockKeycloakInstance.logout).toHaveBeenCalledWith({
+      redirectUri: "https://app.example.com/bye",
+    });
+  });
+
+  it("logout() falls back to the provider-level logoutRedirectUri", async () => {
+    const provider = createKeycloakProvider({
+      ...testConfig,
+      logoutRedirectUri: "https://app.example.com",
+    });
+    await provider.logout();
+    expect(mockKeycloakInstance.logout).toHaveBeenCalledWith({
+      redirectUri: "https://app.example.com",
+    });
+  });
+
+  it("refreshToken() returns the current tokens after a successful update", async () => {
+    const provider = createKeycloakProvider(testConfig);
+    mockKeycloakInstance.updateToken.mockResolvedValueOnce(true);
+    mockKeycloakInstance.token = "new-access";
+    mockKeycloakInstance.refreshToken = "new-refresh";
+    mockKeycloakInstance.tokenParsed = { exp: 3_000_000 };
+
+    const tokens = await provider.refreshToken();
+
+    expect(tokens).toEqual({
+      token: "new-access",
+      refreshToken: "new-refresh",
+      expiresAt: 3_000_000 * 1000,
+    });
+  });
+
+  it("refreshToken() returns null when token fields are absent after update", async () => {
+    const provider = createKeycloakProvider(testConfig);
+    mockKeycloakInstance.updateToken.mockResolvedValueOnce(true);
+    // token / refreshToken / tokenParsed stay undefined on a fresh instance
+
+    const tokens = await provider.refreshToken();
+    expect(tokens).toBeNull();
+  });
+
+  it("refreshToken() propagates the error when kc.updateToken() rejects", async () => {
+    const provider = createKeycloakProvider(testConfig);
+    mockKeycloakInstance.updateToken.mockRejectedValueOnce(new Error("session expired"));
+
+    await expect(provider.refreshToken()).rejects.toThrow("session expired");
   });
 });
 
