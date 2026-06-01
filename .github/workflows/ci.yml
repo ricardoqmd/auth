@@ -7,7 +7,41 @@ on:
     branches: [main]
 
 jobs:
-  build-test-analyze:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      # Don't cancel Node 22 just because Node 20 failed (or vice versa) —
+      # we want the result for every version.
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Run tests
+        run: pnpm test
+
+  analyze:
+    # Name kept stable so the existing branch-protection required check
+    # ("Build, test & analyze") is not orphaned. Coverage + Sonar run once,
+    # on the canonical Node version only.
     name: Build, test & analyze
     runs-on: ubuntu-latest
 
@@ -36,8 +70,7 @@ jobs:
       - name: Run tests with coverage
         run: pnpm test:coverage
 
-      # v7 is the current major; pin whatever the Marketplace shows as latest.
-      # For SonarQube Cloud, SONAR_HOST_URL is not needed (only for self-hosted).
+      # v5 action; SonarQube Cloud does not need SONAR_HOST_URL (only self-hosted does).
       - name: SonarQube Cloud scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
