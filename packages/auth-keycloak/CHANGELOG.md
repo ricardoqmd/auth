@@ -1,5 +1,12 @@
 # @ricardoqmd/auth-keycloak
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [d54643a]
+  - @ricardoqmd/auth-core@0.3.0
+
 ## 0.2.1
 
 ### Patch Changes

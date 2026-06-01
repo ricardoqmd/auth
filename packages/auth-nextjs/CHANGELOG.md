@@ -1,5 +1,36 @@
 # @ricardoqmd/auth-nextjs
 
+## 0.3.0
+
+### Minor Changes
+
+- 16bb69b: Expose `login()` from `useAuth()`.
+
+  `useAuth()` now returns a `login()` method (symmetric to `logout()`) that triggers
+  the IDP login flow. This lets consumers drive authentication on demand — public
+  routes / `check-sso` setups where the app starts unauthenticated and logs in via
+  a sign-in button or a consumer-defined route guard — instead of relying solely on
+  `onLoad: 'login-required'`. Additive: no existing behavior changes.
+
+- d54643a: Surface the structured `AuthError` to consumers and hide machine internals.
+
+  `useAuth().error` and the `AuthProvider` `errorComponent` prop now expose the
+  structured `AuthError` (`{ code, message }`) instead of a flattened `Error`, so
+  consumers can branch on `error.code` (`TOKEN_EXPIRED`, `NETWORK_ERROR`,
+  `INIT_FAILED`, `REFRESH_FAILED`) to drive UX. The machine-internal types
+  `AuthContext` and `AuthEvent` are no longer exported from `@ricardoqmd/auth-core`
+  (marked `@internal`); `AuthError`, `AuthTokens`, `AuthUserClaims`, and the
+  `AuthProvider` port remain the public, framework-agnostic contract.
+
+  BREAKING CHANGE (pre-1.0, lands in MINOR per the repo convention): the type of
+  `AuthState.error` and of `errorComponent`'s argument changes from `Error` to
+  `AuthError`; `AuthContext` and `AuthEvent` are no longer public exports.
+
+### Patch Changes
+
+- Updated dependencies [d54643a]
+  - @ricardoqmd/auth-core@0.3.0
+
 ## 0.2.1
 
 ### Patch Changes
