@@ -167,7 +167,7 @@ npm run dev
 
 ## Status
 
-**0.2.0** — Public API approaching stability. Reserve 1.0.0 expectations until announced.
+**Pre-1.0** — Public API approaching stability. Reserve 1.0.0 expectations until announced.
 
 ## License
 

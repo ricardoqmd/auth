@@ -2,12 +2,10 @@
 
 ## Supported versions
 
-| Version | Supported |
-| ------- | --------- |
-| 0.2.x   | ✅ Active  |
-| 0.1.x   | ❌ No longer supported |
-
-Only the latest minor release receives security fixes. Upgrade to 0.2.x before reporting.
+This project is pre-1.0 (`0.x`). Only the **latest published minor** receives
+security fixes; older minors are unsupported. Upgrade to the latest release
+before reporting. When `1.0.0` ships, this moves to a standard supported-major
+window.
 
 ## Reporting a vulnerability
 
