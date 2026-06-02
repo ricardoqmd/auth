@@ -154,7 +154,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       // check-sso renders the app for anonymous users (public landing). With
       // onLoad: "login-required" this would be false and Keycloak would redirect
       // before anything renders.
-      renderOnUnauthenticated="false"
+      renderOnUnauthenticated={true}
     >
       {children}
     </AuthProvider>
