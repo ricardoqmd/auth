@@ -10,6 +10,18 @@ import type { AuthInitResult, AuthProvider, AuthTokens, AuthUserClaims } from '.
 // Public types
 // ============================================================================
 
+/**
+ * Structured authentication error. Branch on `code` to drive UX (e.g. retry a
+ * NETWORK_ERROR, re-login on an expired session).
+ *
+ * Frozen for 1.0 (ADR-009). Adding a new `code` is non-breaking when consumers
+ * branch with a `default`; removing or renaming one is a MAJOR change.
+ *
+ * Note: `TOKEN_EXPIRED` is **reserved and not currently emitted by
+ * `@ricardoqmd/auth-keycloak`** — keycloak-js rejects on a dead refresh token,
+ * which surfaces as `REFRESH_FAILED`. The machine still maps a `null` refresh
+ * result to `TOKEN_EXPIRED` for future adapters. See ADR-009.
+ */
 export interface AuthError {
   code: 'INIT_FAILED' | 'REFRESH_FAILED' | 'TOKEN_EXPIRED' | 'NETWORK_ERROR';
   message: string;
