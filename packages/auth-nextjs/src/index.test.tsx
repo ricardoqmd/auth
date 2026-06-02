@@ -213,4 +213,92 @@ describe("useAuth", () => {
     });
   });
 
+  it("reports realm roles via hasRole and hasAnyRole", async () => {
+    const provider: IAuthProvider = {
+      init: () =>
+        Promise.resolve({
+          authenticated: true,
+          token: "fake-token",
+          refreshToken: "fake-refresh",
+          expiresAt: Date.now() + 60_000,
+          user: { sub: "user-1", roles: ["editor", "viewer"] },
+          idpClaims: null,
+        }),
+      login: () => Promise.resolve(),
+      logout: () => Promise.resolve(),
+      refreshToken: () => Promise.resolve(null),
+    };
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }) => (
+        <AuthProvider provider={provider}>{children}</AuthProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isAuthenticated).toBe(true);
+    });
+
+    expect(result.current.hasRole("editor")).toBe(true);
+    expect(result.current.hasRole("admin")).toBe(false);
+    expect(result.current.hasAnyRole(["admin", "viewer"])).toBe(true);
+    expect(result.current.hasAnyRole(["admin", "owner"])).toBe(false);
+  });
+
+  it("exposes logout() which triggers the provider logout flow", async () => {
+    const logout = vi.fn(() => Promise.resolve());
+    const provider: IAuthProvider = {
+      init: () =>
+        Promise.resolve({
+          authenticated: true,
+          token: "fake-token",
+          refreshToken: "fake-refresh",
+          expiresAt: Date.now() + 60_000,
+          user: { sub: "user-1", roles: [] },
+          idpClaims: null,
+        }),
+      login: () => Promise.resolve(),
+      logout,
+      refreshToken: () => Promise.resolve(null),
+    };
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }) => (
+        <AuthProvider provider={provider}>{children}</AuthProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isAuthenticated).toBe(true);
+    });
+
+    act(() => {
+      result.current.logout();
+    });
+
+    await waitFor(() => {
+      expect(logout).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("hasRole/hasAnyRole return false when unauthenticated", async () => {
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }) => (
+        <AuthProvider
+          provider={unauthenticatedProvider}
+          renderOnUnauthenticated={true}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isAuthenticated).toBe(false);
+    });
+
+    expect(result.current.hasRole("editor")).toBe(false);
+    expect(result.current.hasAnyRole(["editor", "viewer"])).toBe(false);
+  });
+
 });
