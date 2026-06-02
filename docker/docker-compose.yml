@@ -18,5 +18,24 @@ services:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
       - keycloak-data:/opt/keycloak/data
 
+  # Optional: the reference demo app, built from the monorepo. Behind a profile
+  # so a plain `up` (e.g. `pnpm kc:up`) starts only Keycloak. Start the full
+  # stack with `--profile demo` (see `pnpm demo:docker`). Log in ricardo/password.
+  demo:
+    profiles: ["demo"]
+    build:
+      context: ..                      # repo root
+      dockerfile: apps/demo/Dockerfile
+      args:
+        # Browser-side URL of the bundled Keycloak (baked at build time).
+        NEXT_PUBLIC_KC_URL: http://localhost:8080
+        NEXT_PUBLIC_KC_REALM: demo
+        NEXT_PUBLIC_KC_CLIENT_ID: demo-app
+    container_name: ricardoqmd-auth-demo
+    ports:
+      - "3000:3000"
+    depends_on:
+      - keycloak
+
 volumes:
   keycloak-data:

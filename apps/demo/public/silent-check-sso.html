@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Silent SSO check</title>
+  </head>
+  <body>
+    <script>
+      // Posts the current URL back to the parent app so keycloak-js can read
+      // the auth result from the hidden iframe without a full-page redirect.
+      parent.postMessage(location.href, location.origin);
+    </script>
+  </body>
+</html>

@@ -22,6 +22,8 @@
     "kc:down": "docker compose -f docker/docker-compose.yml down",
     "kc:logs": "docker compose -f docker/docker-compose.yml logs -f keycloak",
     "kc:reset": "docker compose -f docker/docker-compose.yml down -v && pnpm kc:up",
+    "demo:docker": "docker compose -f docker/docker-compose.yml --profile demo up --build",
+    "demo:docker:down": "docker compose -f docker/docker-compose.yml --profile demo down",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "pnpm build && changeset publish"
