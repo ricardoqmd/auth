@@ -36,13 +36,15 @@ const provider = createKeycloakProvider({
   // app, use onLoad: "login-required" and drop renderOnUnauthenticated below
   // (see README → "Gating patterns").
   onLoad: "check-sso",
-  // Required for check-sso: a static doc served by the app that lets Keycloak
-  // verify the session in a hidden iframe (no full-page redirect). Its URL must
-  // be covered by the client's "Valid redirect URIs" in Keycloak.
-  silentCheckSsoRedirectUri:
-    typeof window !== "undefined"
-      ? `${window.location.origin}/silent-check-sso.html`
-      : undefined,
+  // Redirect-based check-sso (no hidden iframe): keycloak-js does a brief
+  // top-level redirect to verify the session, then returns. This avoids the
+  // silent-iframe pitfalls that bite in cross-origin / strict-CSP deployments:
+  // Keycloak's `frame-ancestors` CSP blocking the framed login page, and
+  // third-party-cookie restrictions. To opt into the silent iframe instead, set
+  // silentCheckSsoRedirectUri here AND allow this app's origin in Keycloak's
+  // `frame-ancestors` CSP (see README → "Gating patterns"). Either way the app
+  // must be served over a secure context (HTTPS or localhost): keycloak-js needs
+  // the Web Crypto API for PKCE, which browsers withhold over plain http://<ip>.
 });
 
 // ----------------------------------------------------------------------------

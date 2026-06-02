@@ -60,8 +60,9 @@ Keycloak needs ~30–60s to import the realm on first start.
   the client bundle). To point a built image at a different Keycloak, rebuild with
   `--build-arg NEXT_PUBLIC_KC_URL=...` (and realm/clientId).
 - Note: with both on `localhost`, app and Keycloak are the **same site**, so this
-  does **not** exercise the third-party-cookie / cross-origin check-sso path.
-  For that, deploy with distinct origins (see "Testing behind a real gateway").
+  does **not** exercise the cross-origin path (app and Keycloak on different
+  origins). For that, deploy with distinct origins (see "Testing behind a real
+  gateway").
 
 ## Keycloak client setup
 
@@ -76,26 +77,43 @@ enabled, then set:
 
 Notes:
 
-- The silent-SSO document (`public/silent-check-sso.html`, served at
-  `http://localhost:3000/silent-check-sso.html`) is covered by the
-  `http://localhost:3000/*` redirect pattern — no separate entry needed.
+- `public/silent-check-sso.html` ships for the **opt-in** silent check-sso variant
+  (see "Gating patterns"); the default redirect-based flow does not use it. If you
+  do opt in, it is already covered by the `http://localhost:3000/*` redirect
+  pattern — no separate entry needed.
 - To see the RBAC rows turn `true`, assign the user a realm role (`admin` /
   `user`) and, for the resource-role rows, a client role (`editor` / `viewer`)
   on the `demo-app` client.
 
 ## Gating patterns
 
-This demo uses **check-sso** so it can show both public and protected routes:
+This demo uses **redirect-based check-sso** so it can show both public and
+protected routes:
 
-- `onLoad: "check-sso"` + `renderOnUnauthenticated` → the app renders for
-  anonymous users; the consumer gates protected areas with `<RequireAuth>`.
+- `onLoad: "check-sso"` (no `silentCheckSsoRedirectUri`) + `renderOnUnauthenticated`
+  → keycloak-js does a brief top-level redirect to verify the session, then the
+  app renders for anonymous users; the consumer gates protected areas with
+  `<RequireAuth>`. No iframe, so it is unaffected by Keycloak's `frame-ancestors`
+  CSP and by third-party-cookie restrictions.
 
 For a **fully-private** app (e.g. an internal dashboard with no public pages),
 use the simpler boot gate instead:
 
-- `onLoad: "login-required"` in the provider and **drop**
-  `renderOnUnauthenticated` — Keycloak redirects before anything renders, so no
-  guard component is needed.
+- `onLoad: "login-required"` and **drop** `renderOnUnauthenticated` — Keycloak
+  redirects before anything renders, so no guard component is needed. This is the
+  recommended choice for private apps.
+
+To **opt into silent check-sso** (session checked in a hidden iframe, no redirect
+flash), set `silentCheckSsoRedirectUri` in the provider. Mind the trade-offs in a
+cross-origin / strict-CSP deployment: Keycloak's `frame-ancestors 'self'` CSP
+blocks the app from framing the login page (allow this app's origin under Realm
+Settings → Security Defenses → Content-Security-Policy), and browsers that block
+third-party cookies can make the iframe time out. The redirect flow above avoids
+both.
+
+All flows require a **secure context** (HTTPS, or `localhost`): keycloak-js uses
+the Web Crypto API for PKCE, which browsers withhold over plain `http://<ip>`
+(surfaces as `INIT_FAILED` — "Web Crypto API is not available").
 
 ## Testing behind a real gateway (cross-origin)
 
@@ -103,10 +121,15 @@ To validate the integration the way production behaves — not just localhost �
 deploy this app where its origin **differs from Keycloak's** (real DNS, behind
 your proxy/firewall), build with `next build && next start`, and:
 
-- Confirm silent check-sso still works cross-origin. Browsers block third-party
-  cookies, so the hidden iframe can intermittently time out (surfaces as
-  `INIT_FAILED`) when the app and Keycloak are on different sites. If you see
-  this only in production, it's the 3rd-party-cookie path, not a code bug.
+- Serve over **HTTPS** (or tunnel so the app is reached via `localhost`). On plain
+  `http://<ip>` the browser withholds the Web Crypto API that PKCE needs, so init
+  fails with `INIT_FAILED` ("Web Crypto API is not available") — a secure-context
+  rule, not a code bug. Dev shortcuts: an SSH tunnel to `localhost`, a self-signed
+  cert, or Chrome's "treat insecure origin as secure" flag.
+- The default redirect-based check-sso uses no iframe and is unaffected by
+  third-party cookies. If you opted into silent check-sso, Keycloak's
+  `frame-ancestors` CSP blocks the iframe cross-origin until you allow this app's
+  origin (Realm Settings → Security Defenses → Content-Security-Policy).
 - Set `NEXT_PUBLIC_API_URL` to a real gateway route and use the "Backend call"
   panel to send the token end-to-end. The gateway must allow this app's origin
   (CORS) or `fetch` fails with no HTTP status.
