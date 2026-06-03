@@ -58,6 +58,27 @@ const PROACTIVE_REFRESH_BUFFER_MS = 30_000;
 /** Fallback refresh delay when expiresAt is unavailable (should not happen in practice). */
 const FALLBACK_REFRESH_DELAY_MS = 5 * 60 * 1000;
 
+/**
+ * Floor for the proactive-refresh interval. When the token's remaining lifetime
+ * is shorter than the buffer, the "refresh BUFFER early" rule would compute a
+ * delay of 0; this floor stops the machine from re-refreshing on every round
+ * trip, which otherwise hammers the token endpoint near the IdP session's max
+ * lifetime (tokens get capped to the session end) or with very short
+ * access-token lifespans. See ADR-011.
+ */
+const MIN_REFRESH_DELAY_MS = 10_000;
+
+/**
+ * Delay (ms) until the next proactive token refresh: PROACTIVE_REFRESH_BUFFER_MS
+ * before expiry, but never sooner than MIN_REFRESH_DELAY_MS. Pure and exported
+ * for unit tests; not re-exported from the package barrel (internal).
+ */
+export function computeRefreshDelay(expiresAt: number | null, now: number): number {
+  if (expiresAt === null) return FALLBACK_REFRESH_DELAY_MS;
+  const proactive = expiresAt - now - PROACTIVE_REFRESH_BUFFER_MS;
+  return Math.max(MIN_REFRESH_DELAY_MS, proactive);
+}
+
 function extractErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
@@ -86,10 +107,8 @@ export function createAuthMachine<TIdpClaims = unknown>(provider: AuthProvider<T
     },
 
     delays: {
-      TOKEN_REFRESH_DELAY: ({ context }: { context: AuthContext<TIdpClaims> }) => {
-        if (context.expiresAt === null) return FALLBACK_REFRESH_DELAY_MS;
-        return Math.max(0, context.expiresAt - Date.now() - PROACTIVE_REFRESH_BUFFER_MS);
-      },
+      TOKEN_REFRESH_DELAY: ({ context }: { context: AuthContext<TIdpClaims> }) =>
+        computeRefreshDelay(context.expiresAt, Date.now()),
       OPERATION_TIMEOUT: () => OPERATION_TIMEOUT_MS,
     },
 
