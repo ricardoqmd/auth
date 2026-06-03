@@ -1,6 +1,6 @@
 import { createActor } from "xstate";
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { createAuthMachine } from "./machine.js";
+import { createAuthMachine, computeRefreshDelay } from "./machine.js";
 import type { AuthProvider } from "./index.js";
 
 // A minimal AuthProvider that never does anything real.
@@ -354,4 +354,27 @@ describe("createAuthMachine", () => {
     expect(actor.getSnapshot().context.token).toBe("auto-access");
   });
 
+});
+
+describe("computeRefreshDelay", () => {
+  const now = 1_000_000;
+
+  it("refreshes ~30s before expiry for a normal token", () => {
+    // 60s of life − 30s buffer = 30s
+    expect(computeRefreshDelay(now + 60_000, now)).toBe(30_000);
+  });
+
+  it("floors the interval instead of hot-looping when remaining life < buffer", () => {
+    // 12s left − 30s buffer = −18s → would be 0 (re-refresh every round trip);
+    // floored to the 10s minimum so it can't hammer the token endpoint.
+    expect(computeRefreshDelay(now + 12_000, now)).toBe(10_000);
+  });
+
+  it("floors the interval for an already-expired token", () => {
+    expect(computeRefreshDelay(now - 5_000, now)).toBe(10_000);
+  });
+
+  it("falls back to a long delay when expiresAt is unknown", () => {
+    expect(computeRefreshDelay(null, now)).toBe(5 * 60 * 1000);
+  });
 });
