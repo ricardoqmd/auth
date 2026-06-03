@@ -13,6 +13,7 @@ Significant architectural decisions for this project are recorded here using the
 | [ADR-007](./007-sonarcloud-for-public-repo.md) | SonarQube Cloud for the public repo (Clean-as-You-Code gate) | 2026-05-30 | Accepted |
 | [ADR-008](./008-public-api-surface-for-1.0.md) | Public API surface for 1.0 — surface `AuthError`, hide machine internals | 2026-06-01 | Accepted |
 | [ADR-009](./009-freeze-public-api-for-1.0.md) | Freeze the public API surface for 1.0 | 2026-06-02 | Accepted |
+| [ADR-010](./010-refine-1.0-consumer-gate.md) | Refine the 1.0 consumer gate to a real-infrastructure deployment test | 2026-06-02 | Accepted |
 
 ## Statuses
 
