@@ -1,5 +1,25 @@
 # @ricardoqmd/auth-core
 
+## 1.0.0
+
+### Major Changes
+
+- Promote the frozen public surface to a stable 1.0.0.
+
+  No new breaking changes: the API was frozen at 0.3.0 (ADR-009) and validated
+  end-to-end against real infrastructure (ADR-010). From 1.0.0 the surface is
+  governed by SemVer — additive changes are non-breaking; removing or renaming an
+  export, or adding a method to the AuthProvider port, is a major bump.
+
+### Patch Changes
+
+- 6553344: Floor the proactive token-refresh interval so it can't hot-loop. When a token's
+  remaining lifetime is shorter than the refresh buffer — near the IdP session's
+  max lifetime (tokens are capped to the session end) or with very short
+  access-token lifespans — the scheduler previously recomputed a 0ms delay and
+  re-refreshed on every round trip, hammering the token endpoint. Refresh now polls
+  no more often than a 10s floor. Internal change; public API unchanged. See ADR-011.
+
 ## 0.3.0
 
 ### Minor Changes
