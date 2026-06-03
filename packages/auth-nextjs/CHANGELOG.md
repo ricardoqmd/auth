@@ -1,5 +1,22 @@
 # @ricardoqmd/auth-nextjs
 
+## 1.0.0
+
+### Major Changes
+
+- Promote the frozen public surface to a stable 1.0.0.
+
+  No new breaking changes: the API was frozen at 0.3.0 (ADR-009) and validated
+  end-to-end against real infrastructure (ADR-010). From 1.0.0 the surface is
+  governed by SemVer — additive changes are non-breaking; removing or renaming an
+  export, or adding a method to the AuthProvider port, is a major bump.
+
+### Patch Changes
+
+- Updated dependencies [6553344]
+- Updated dependencies
+  - @ricardoqmd/auth-core@1.0.0
+
 ## 0.3.0
 
 ### Minor Changes
