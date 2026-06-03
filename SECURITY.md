@@ -2,10 +2,9 @@
 
 ## Supported versions
 
-This project is pre-1.0 (`0.x`). Only the **latest published minor** receives
-security fixes; older minors are unsupported. Upgrade to the latest release
-before reporting. When `1.0.0` ships, this moves to a standard supported-major
-window.
+Security fixes target the **latest published `1.x` minor**; older minors are
+unsupported — upgrade to the latest release before reporting. The three packages
+(`auth-core`, `auth-keycloak`, `auth-nextjs`) version in lockstep.
 
 ## Reporting a vulnerability
 

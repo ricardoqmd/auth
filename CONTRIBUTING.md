@@ -226,6 +226,12 @@ before merging. Do not merge with red CI.
 
 ## Versioning and releases
 
+Since 1.0, the public surface follows SemVer: removing or renaming an export, or
+adding a method to the `AuthProvider` port, is a **major** bump; backward-compatible
+additions are **minor**; fixes are **patch**. Adding a new `AuthError.code` is
+non-breaking when consumers handle `default`. The frozen surface is defined in
+[ADR-009](./docs/decisions/009-freeze-public-api-for-1.0.md).
+
 All three packages are version-linked via [Changesets](https://github.com/changesets/changesets). If your change warrants a release entry:
 
 ```bash

@@ -93,6 +93,10 @@ export function Dashboard() {
 }
 ```
 
+> Sign-in on demand (`login()`), structured error handling (`AuthError.code`), and
+> public/protected route patterns are documented in
+> [`@ricardoqmd/auth-nextjs`](./packages/auth-nextjs/README.md).
+
 ## Local development
 
 ### Prerequisites
@@ -144,10 +148,11 @@ pnpm changeset    # record a release-worthy change
 
 ## Roadmap
 
-Shipped through **v0.2.1** (IDP-agnostic core, RBAC helpers, tests + CI; all three
-packages on npm). Next is **v0.3.0** — raise test coverage and review the public API
-surface ahead of a frozen 1.0. SSR, additional IDP adapters, and Vue bindings are
-post-1.0 and demand-driven.
+All three packages are published and **stable (1.0)** — the public API is frozen
+and follows SemVer ([ADR-009](./docs/decisions/009-freeze-public-api-for-1.0.md)),
+and was validated end-to-end on real infrastructure
+([ADR-010](./docs/decisions/010-refine-1.0-consumer-gate.md)). SSR, additional IDP
+adapters, and Vue bindings are post-1.0 and demand-driven.
 
 Full plan: [`ROADMAP.md`](./ROADMAP.md) · Rationale: [ADR-006](./docs/decisions/006-harden-before-expand.md).
 

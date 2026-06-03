@@ -74,6 +74,25 @@ export function Dashboard() {
 }
 ```
 
+### Sign-in on demand (`check-sso` flows)
+
+With `renderOnUnauthenticated`, anonymous users see your UI and sign in when they
+choose. Call `login()` from the hook:
+
+```tsx
+"use client";
+import { useAuth } from "@ricardoqmd/auth-nextjs";
+
+export function SignInButton() {
+  const { isAuthenticated, login, logout } = useAuth();
+  return isAuthenticated ? (
+    <button onClick={logout}>Sign out</button>
+  ) : (
+    <button onClick={login}>Sign in</button>
+  );
+}
+```
+
 ### IDP-specific claims (typed)
 
 `useAuth()` is generic over the IDP claims shape. If you want typed access to provider-specific fields, pass your adapter's claims interface:
@@ -103,7 +122,7 @@ For common role checks, use the universal `hasRole()` / `hasAnyRole()` exposed b
 |---|---|---|---|
 | `provider` | `AuthProvider` | required | Adapter instance from `createKeycloakProvider()` |
 | `loadingComponent` | `ReactNode` | `null` | Shown while initializing or during logout redirect |
-| `errorComponent` | `(error: Error) => ReactNode` | `null` | Shown when initialization fails |
+| `errorComponent` | `(error: AuthError) => ReactNode` | `null` | Shown in the `error` state; receives a structured [`AuthError`](#handling-errors) |
 | `renderOnUnauthenticated` | `boolean` | `false` | Render children when unauthenticated (for `check-sso` flows with a login button) |
 
 ### `useAuth<TIdpClaims>()`
@@ -121,12 +140,46 @@ const { idpClaims } = useAuth<KeycloakIdpClaims>();
 | `token` | `string \| null` | Raw JWT access token |
 | `user` | `AuthUserClaims \| null` | Decoded standard OIDC claims (`preferred_username`, `email`, `name`, `sub`, `roles`, …) |
 | `idpClaims` | `TIdpClaims \| null` | IDP-specific token claims. Type is generic — pass your IDP's claims interface to `useAuth<T>()`. Use this to access provider-specific fields (e.g., Keycloak's `resource_access`). |
-| `error` | `Error \| null` | Set when initialization or token refresh fails |
+| `error` | `AuthError \| null` | Structured error set in the `error` state; branch on `error.code` (see [Handling errors](#handling-errors)) |
+| `login` | `() => void` | Starts the login redirect (useful on public routes with `check-sso`) |
 | `logout` | `() => void` | Triggers the logout flow |
 | `hasRole` | `(role: string) => boolean` | Check if user has a role in the universal `user.roles` array |
 | `hasAnyRole` | `(roles: string[]) => boolean` | True if user has at least one of the given roles |
 
 For IDP-specific role checks (e.g., Keycloak's resource roles), import dedicated utilities from your adapter package. See [`@ricardoqmd/auth-keycloak`](https://www.npmjs.com/package/@ricardoqmd/auth-keycloak) for `hasResourceRole()`.
+
+## Handling errors
+
+`error` (from `useAuth()`) and the value passed to `errorComponent` are a
+structured `AuthError` from `@ricardoqmd/auth-core`, not a plain `Error`. Branch
+on `error.code` to drive UX:
+
+```tsx
+import type { AuthError } from "@ricardoqmd/auth-core";
+
+// errorComponent receives the AuthError directly.
+function ErrorScreen(error: AuthError) {
+  switch (error.code) {
+    case "NETWORK_ERROR": // identity server unreachable — retryable
+    case "INIT_FAILED": // could not initialize the session
+      return <button onClick={() => window.location.reload()}>Retry</button>;
+    case "REFRESH_FAILED": // session ended — a fresh login is required
+    case "TOKEN_EXPIRED":
+      return <button onClick={() => provider.login()}>Sign in again</button>;
+    default:
+      return <p>{error.message}</p>;
+  }
+}
+```
+
+`code` is one of `INIT_FAILED`, `REFRESH_FAILED`, `TOKEN_EXPIRED`, or
+`NETWORK_ERROR`. New codes may be added over time, so always handle `default`.
+(`TOKEN_EXPIRED` is reserved and not currently emitted by `auth-keycloak` — a dead
+refresh token rejects as `REFRESH_FAILED`; see ADR-009.)
+
+> `errorComponent` is rendered **outside** the auth context, so it cannot call
+> `useAuth()`. To trigger a new login from it, call the module-scope
+> `provider.login()` directly (as above).
 
 ## Troubleshooting
 
@@ -167,7 +220,10 @@ npm run dev
 
 ## Status
 
-**Pre-1.0** — Public API approaching stability. Reserve 1.0.0 expectations until announced.
+**Stable.** The public API is frozen and follows SemVer from 1.0 onward (see
+[ADR-009](https://github.com/ricardoqmd/auth/blob/main/docs/decisions/009-freeze-public-api-for-1.0.md)):
+additive changes are non-breaking; removing or renaming an export, or adding a
+method to the `AuthProvider` port, is a major bump.
 
 ## License
 
