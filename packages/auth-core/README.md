@@ -18,13 +18,32 @@ Most consumers will not install `auth-core` directly — it comes as a transitiv
 
 - **State machine** (`createAuthMachine`) that owns the lifecycle: `idle → initializing → authenticated | unauthenticated → loggingOut → ...`
 - **`AuthProvider<TIdpClaims>` contract** — the interface every IDP adapter implements.
-- **Public types** — `AuthState`, `AuthTokens`, `AuthInitResult`, `AuthUserClaims`, `LogoutOptions`.
+- **Public types** — `AuthTokens`, `AuthUserClaims`, `AuthInitResult`, `LogoutOptions`, and the structured `AuthError`.
 
 ## IDP-agnostic by design
 
 The core exposes a `user.roles: string[]` field that is the universal contract across all identity providers (Keycloak, Entra ID, Cognito, Auth0, …). Each adapter is responsible for mapping its IDP-specific claims into this universal shape.
 
 For IDP-specific data (Keycloak's `resource_access`, for example), the core exposes a generic `idpClaims<TIdpClaims>` that adapters populate. Consumers opt in to typed access by passing their IDP claims interface to bindings like `useAuth<KeycloakIdpClaims>()`.
+
+## Error contract
+
+Auth failures surface as a structured `AuthError`, not a plain `Error`, so
+consumers branch on a stable code instead of parsing messages:
+
+```ts
+import type { AuthError } from "@ricardoqmd/auth-core";
+
+interface AuthError {
+  code: "INIT_FAILED" | "REFRESH_FAILED" | "TOKEN_EXPIRED" | "NETWORK_ERROR";
+  message: string;
+}
+```
+
+Bindings expose it directly — e.g. `useAuth().error` and `errorComponent` in
+`@ricardoqmd/auth-nextjs`. New codes may be added over time, so always handle a
+`default` branch. (`TOKEN_EXPIRED` is reserved and not currently emitted by
+`auth-keycloak`; see ADR-009.)
 
 ## Typical consumer code
 
@@ -65,7 +84,10 @@ export function createMyIdpProvider(config: MyConfig): AuthProvider<MyIdpClaims>
 
 ## Status
 
-**Pre-1.0** — Public API approaching stability. Reserve 1.0.0 expectations until announced.
+**Stable.** The public API is frozen and follows SemVer from 1.0 onward (see
+[ADR-009](https://github.com/ricardoqmd/auth/blob/main/docs/decisions/009-freeze-public-api-for-1.0.md)):
+additive changes are non-breaking; removing or renaming an export, or adding a
+method to the `AuthProvider` port, is a major bump.
 
 ## License
 

@@ -52,6 +52,18 @@ createKeycloakProvider({
 });
 ```
 
+## Deployment notes
+
+- **Secure context required.** `keycloak-js` uses the Web Crypto API for PKCE
+  (`S256`), which browsers expose only in a secure context — HTTPS or
+  `localhost`. Served over plain `http://<ip>`, init fails with `INIT_FAILED`
+  ("Web Crypto API is not available").
+- **Silent check-sso and CSP.** Setting `silentCheckSsoRedirectUri` loads Keycloak
+  in a hidden iframe; Keycloak's default `frame-ancestors 'self'` CSP blocks that
+  cross-origin until you allow the app's origin (Realm Settings → Security
+  Defenses → Content-Security-Policy). Redirect-based flows (`login-required`, or
+  `check-sso` without `silentCheckSsoRedirectUri`) avoid the iframe entirely.
+
 ## IDP-specific role checks
 
 For realm roles (universal across IDPs), use `hasRole()` from your framework binding:
@@ -82,13 +94,15 @@ function EditButton() {
 
 | Package version | keycloak-js   | Keycloak server |
 | --------------- | ------------- | --------------- |
-| 0.x             | >=26.0 <28.0  | >=26.0          |
+| 1.x             | >=26.0 <28.0  | >=26.0          |
 
 Since Keycloak 26.2, the `keycloak-js` adapter is released independently from the server and is backwards compatible with all actively supported Keycloak server versions.
 
 ## Status
 
-**Pre-1.0** — Public API approaching stability. Reserve 1.0.0 expectations until announced.
+**Stable.** The public API is frozen and follows SemVer from 1.0 onward (see
+[ADR-009](https://github.com/ricardoqmd/auth/blob/main/docs/decisions/009-freeze-public-api-for-1.0.md)):
+additive changes are non-breaking; removing or renaming an export is a major bump.
 
 ## License
 

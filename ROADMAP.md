@@ -13,32 +13,31 @@ The chronological history of shipped work lives in
 - [x] **v0.2.0** — IDP-agnostic refactor: generic `idpClaims<T>`, universal `user.roles[]`, `hasResourceRole` moved to the adapter package. Tests + GitHub Actions CI. (2026-05-29)
 - [x] **v0.2.1** — documentation: package READMEs refreshed on npm, decision records and community-health files added. (2026-05-30)
 - [x] **v0.3.0** — hardening + API surface review: coverage ~83% via direct behavior tests on the machine and adapter; structured `AuthError` surfaced to consumers and machine internals (`AuthContext`/`AuthEvent`) hidden (ADR-008); `useAuth().login()` added; SonarQube Cloud quality gate (ADR-007); Node 20/22 CI matrix; de-hardcoded version labels. (2026-06-01)
+- [x] **v1.0.0** — stable API contract: public surface frozen (ADR-009), validated end-to-end on real infrastructure (ADR-010), package READMEs completed (`login()` + structured `AuthError`), and the proactive-refresh interval floored against hot-looping (ADR-011). (2026-06-02)
 
-## Toward v1.0.0 — Stable API contract
+## v1.0.0 criteria (met)
 
-The 1.0 criteria are recorded in [ADR-006](./docs/decisions/006-harden-before-expand.md).
-Status after v0.3.0:
+The 1.0 criteria from [ADR-006](./docs/decisions/006-harden-before-expand.md):
 
 - [x] ~80% test coverage — at ~83%.
-- [ ] **Public API frozen.** Surface reviewed and hardened in
-  [ADR-008](./docs/decisions/008-public-api-surface-for-1.0.md). Remaining: cover
-  the public methods still lacking tests (`logout`, `hasRole`, `hasAnyRole`), do a
-  final no-accidental-exports pass, then declare the freeze in its own ADR.
-- [ ] **Complete documentation.** Polish the per-package READMEs and add a
-  quickstart; turn the demo app into a reference implementation showing
-  `login()`, public/protected routes (a consumer-side route guard), and
-  structured-error handling.
-- [ ] **At least one real consumer in production** (platform-react / the RH
-  system). External gate — paced by those projects, not by this repo. The demo
-  de-risks the integration but does not satisfy this criterion.
-- [ ] **Performance budget.** ADR-006 says "benchmarks"; for a frontend library a
-  bundle-size budget (e.g. `size-limit` in CI) plus documented init/refresh
-  characteristics likely fits better — revisit ADR-006's wording.
+- [x] **Public API frozen** — surface reviewed (ADR-008) and frozen in
+  [ADR-009](./docs/decisions/009-freeze-public-api-for-1.0.md).
+- [x] **Complete documentation** — per-package READMEs cover `login()` and the
+  structured `AuthError`; the demo is a reference implementation (public/protected
+  routes, a consumer-side route guard, structured-error handling).
+- [x] **Validated against a real consumer** — re-scoped from "consumer in
+  production" to a real-infrastructure deployment test in
+  [ADR-010](./docs/decisions/010-refine-1.0-consumer-gate.md).
 
 ## Post-1.0 — Expansion, demand-driven
 
 Built only when a concrete consumer needs them — not on a fixed schedule.
 
+- [ ] **Performance / bundle-size budget** (e.g. `size-limit` in CI) — deferred
+  from the 1.0 gate; a CI nice-to-have, not an API or correctness concern.
+- [ ] **Reactive token refresh** (renew on 401) — complements the proactive,
+  rate-floored refresh (ADR-011); needs new public surface, so it waits for real
+  demand.
 - [ ] `@ricardoqmd/auth-nextjs-ssr` — SSR support: middleware factory using `jose` for JWKS validation; Server Component / Route Handler helpers.
 - [ ] `@ricardoqmd/auth-vue` — Vue 3 bindings.
 - [ ] Additional IDP adapters: Entra ID, Cognito, Auth0.
