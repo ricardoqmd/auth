@@ -77,3 +77,7 @@ export interface AuthProvider<TIdpClaims = unknown> {
 
 export { createAuthMachine } from "./machine.js";
 export type { AuthError } from "./machine.js";
+
+// Handle — imperative, framework-agnostic accessor (ADR-014)
+export { createAuthHandle } from "./handle.js";
+export type { AuthHandle, AuthActor } from "./handle.js";
