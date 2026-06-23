@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { defineComponent, nextTick } from "vue";
+import { describe, it, expect, vi } from "vitest";
+import { defineComponent, h, nextTick } from "vue";
 import { flushPromises, mount } from "@vue/test-utils";
 import type { AuthProvider, AuthInitResult } from "@ricardoqmd/auth-core";
 import { createAuth } from "./plugin.js";
@@ -88,6 +88,49 @@ describe("@ricardoqmd/auth-vue", () => {
       },
     });
 
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(() => mount(Harness)).toThrow(/auth plugin/);
+    warn.mockRestore();
+  });
+  it("hasRole stays reactive when used in isolation", async () => {
+    // Renders ONLY hasRole — no other reactive reads. With getSnapshot() this
+    // never re-renders after auth settles; reading user.value tracks the dep.
+    const RoleOnly = defineComponent({
+      setup() {
+        const { hasRole } = useAuth();
+        return () => h("span", { class: "admin" }, String(hasRole("admin")));
+      },
+    });
+    const provider: AuthProvider = {
+      init: async () => ({ authenticated: true, token: "t", user: { roles: ["admin"] } }),
+      login: async () => {}, logout: async () => {}, refreshToken: async () => null,
+    };
+    const wrapper = mount(RoleOnly, { global: { plugins: [createAuth({ provider })] } });
+    await flushPromises();
+    await nextTick();
+    await flushPromises();
+    expect(wrapper.find(".admin").text()).toBe("true");
+  });
+
+  it("surfaces INIT_FAILED when init() rejects", async () => {
+    const ErrHarness = defineComponent({
+      setup() {
+        const { error, isAuthenticated } = useAuth();
+        return () => h("div", [
+          h("span", { class: "code" }, error.value?.code ?? ""),
+          h("span", { class: "authed" }, String(isAuthenticated.value)),
+        ]);
+      },
+    });
+    const provider: AuthProvider = {
+      init: async () => { throw new Error("keycloak unreachable"); },
+      login: async () => {}, logout: async () => {}, refreshToken: async () => null,
+    };
+    const wrapper = mount(ErrHarness, { global: { plugins: [createAuth({ provider })] } });
+    await flushPromises();
+    await nextTick();
+    await flushPromises();
+    expect(wrapper.find(".code").text()).toBe("INIT_FAILED");
+    expect(wrapper.find(".authed").text()).toBe("false");
   });
 });

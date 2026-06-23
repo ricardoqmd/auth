@@ -59,11 +59,9 @@ export function useAuth<TIdpClaims = unknown>(): AuthState<TIdpClaims> {
   const logout = () => actor.send({ type: "LOGOUT" });
 
   const hasRole = (role: string) =>
-    actor.getSnapshot().context.user?.roles?.includes(role) ?? false;
+    user.value?.roles?.includes(role) ?? false;
   const hasAnyRole = (roles: string[]) =>
-    roles.some(
-      (r) => actor.getSnapshot().context.user?.roles?.includes(r) ?? false,
-    );
+    roles.some((r) => user.value?.roles?.includes(r) ?? false);
 
   return {
     isLoading,
