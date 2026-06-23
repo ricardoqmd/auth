@@ -17,6 +17,7 @@ Significant architectural decisions for this project are recorded here using the
 | [ADR-011](./011-floor-proactive-refresh-interval.md) | Floor the proactive token-refresh interval | 2026-06-02 | Accepted |
 | [ADR-012](./012-vue-binding-scope.md) | Vue binding (`auth-vue`) — plugin + composable, client-only scope | 2026-06-10 | Accepted |
 | [ADR-013](./013-independent-versioning.md) | Independent per-package versioning; `auth-core` as a peer dependency | 2026-06-10 | Accepted |
+| [ADR-014](./014-imperative-auth-handle.md) | Imperative auth access — `createAuthHandle` in core | 2026-06-23 | Accepted |
 
 ## Statuses
 
