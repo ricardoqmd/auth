@@ -1,6 +1,6 @@
 {
   "name": "@ricardoqmd/auth-vue",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Vue 3 client-side bindings for @ricardoqmd/auth-core — createAuth plugin, useAuth composable, RBAC helpers",
   "keywords": [
     "auth",
