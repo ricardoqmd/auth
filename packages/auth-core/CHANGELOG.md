@@ -1,5 +1,15 @@
 # @ricardoqmd/auth-core
 
+## 1.1.0
+
+### Minor Changes
+
+- Add `createAuthHandle(actor)`: a framework-agnostic, imperative accessor over a
+  running auth actor (isAuthenticated / isLoading / getToken / getUser / getIdpClaims /
+  getError / hasRole / hasAnyRole / whenReady / subscribe). Enables auth reads outside
+  a framework's render tree — route guards and HTTP interceptors. Additive; closed
+  surface (no raw snapshot). See ADR-014.
+
 ## 1.0.0
 
 ### Major Changes

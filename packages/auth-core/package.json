@@ -1,6 +1,6 @@
 {
   "name": "@ricardoqmd/auth-core",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Framework-agnostic XState machine and types for authentication flows",
   "keywords": [
     "auth",
