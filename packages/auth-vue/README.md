@@ -5,8 +5,12 @@
 ## Installation
 
 ```bash
-npm install @ricardoqmd/auth-core @ricardoqmd/auth-keycloak @ricardoqmd/auth-vue vue
+npm install @ricardoqmd/auth-core @ricardoqmd/auth-keycloak @ricardoqmd/auth-vue vue keycloak-js xstate
 ```
+
+> Install `xstate` even though you never import it: `@ricardoqmd/auth-core` and
+> `@xstate/vue` declare it as a peer, and a single shared instance must resolve at
+> the top level (a duplicate copy would break the actor's reactivity).
 
 > Scope is SPA / client-only (ADR-012). The plugin eagerly initializes the auth
 > flow on install, which assumes a browser. It is SSR-ready by construction (one
@@ -30,8 +34,13 @@ export const provider = createKeycloakProvider({
     realm: import.meta.env.VITE_KC_REALM,
     clientId: import.meta.env.VITE_KC_CLIENT_ID,
   },
+  onLoad: "check-sso",
 });
 ```
+
+> `check-sso` boots the app without forcing a login — anonymous users land on
+> your UI and sign in on demand. Use `login-required` instead to redirect
+> straight to Keycloak before the app renders.
 
 ### 2. Install the plugin
 
@@ -118,12 +127,54 @@ const { isLoading, error, isAuthenticated } = useAuth();
 </template>
 ```
 
+### Route guards (imperative)
+
+`useAuth()` is for components — it is reactive and **throws outside `setup()`**.
+For code that runs outside the render tree (a vue-router `beforeEach` guard, an
+HTTP interceptor), use the value returned by `createAuth(...)`: it is BOTH a Vue
+plugin AND an imperative `AuthHandle`. The same object you install with
+`app.use()` exposes synchronous accessors.
+
+```ts
+// main.ts
+import { createApp } from "vue";
+import { createAuth } from "@ricardoqmd/auth-vue";
+import { router } from "./router";
+import App from "./App.vue";
+import { provider } from "./auth";
+
+const auth = createAuth({ provider });
+const app = createApp(App);
+app.use(auth);
+app.use(router);
+
+router.beforeEach(async (to) => {
+  await auth.whenReady();                 // wait out the first-navigation init race
+  if (to.meta.requiresAuth && !auth.isAuthenticated()) return { name: "login" };
+  if (to.meta.roles && !auth.hasAnyRole(to.meta.roles as string[])) {
+    return { name: "forbidden" };
+  }
+});
+
+app.mount("#app");
+```
+
+`auth.whenReady()` resolves once `init()` settles (authenticated, unauthenticated,
+or error), so the first navigation does not race a pending initialization. The
+handle also exposes `isAuthenticated()`, `isLoading()`, `getToken()`, `getUser()`,
+`getIdpClaims()`, `getError()`, `hasRole()`, `hasAnyRole()`, and `subscribe()`.
+Use `useAuth()` in components (reactive); use the handle in guards/interceptors
+(imperative).
+
 ## API
 
 ### `createAuth(options)`
 
-Returns a Vue `Plugin`. Install with `app.use(createAuth({ provider }))`. Creates
-one auth actor per app instance, starts it, sends `INIT`, and provides it app-wide.
+Returns a value that is BOTH a Vue `Plugin` AND an `AuthHandle<TIdpClaims>`.
+Install it with `app.use(createAuth({ provider }))`; the same object is usable
+imperatively outside components (see [Route guards](#route-guards-imperative)).
+Creates one auth actor per call, starts it, sends `INIT`, and provides it
+app-wide.
 
 | Option | Type | Description |
 |---|---|---|
@@ -160,6 +211,10 @@ currently emitted by `auth-keycloak` — a dead refresh token rejects as
 
 **Pre-1.0.** The public API mirrors `@ricardoqmd/auth-nextjs` and shares the
 `@ricardoqmd/auth-core` contract.
+
+`@ricardoqmd/auth-vue` is `0.x` and versions **independently** from
+`@ricardoqmd/auth-core` and `@ricardoqmd/auth-keycloak` (ADR-013): its version
+does not track theirs, and the API is not frozen until `1.0`.
 
 ## License
 
