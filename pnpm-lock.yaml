@@ -89,7 +89,7 @@ importers:
   packages/auth-keycloak:
     dependencies:
       '@ricardoqmd/auth-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth-core
     devDependencies:
       keycloak-js:
@@ -155,7 +155,7 @@ importers:
         version: 5.0.0(vue@3.5.38(typescript@5.9.3))(xstate@5.31.0)
     devDependencies:
       '@ricardoqmd/auth-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth-core
       '@vue/test-utils':
         specifier: ^2.4.6
@@ -2287,7 +2287,7 @@ snapshots:
 
   '@babel/code-frame@7.29.0':
     dependencies:
-      '@babel/helper-validator-identifier': 7.28.5
+      '@babel/helper-validator-identifier': 7.29.7
       js-tokens: 4.0.0
       picocolors: 1.1.1
 

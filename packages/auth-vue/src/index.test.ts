@@ -44,7 +44,8 @@ async function mountWithAuth(provider: AuthProvider) {
   await nextTick();
   await flushPromises();
 
-  return { wrapper, auth: captured.auth as AuthState };
+  if (!captured.auth) throw new Error("useAuth() did not run in setup");
+  return { wrapper, auth: captured.auth };
 }
 
 describe("@ricardoqmd/auth-vue", () => {
@@ -132,5 +133,72 @@ describe("@ricardoqmd/auth-vue", () => {
     await flushPromises();
     expect(wrapper.find(".code").text()).toBe("INIT_FAILED");
     expect(wrapper.find(".authed").text()).toBe("false");
+  });
+});
+
+describe("@ricardoqmd/auth-vue imperative handle", () => {
+  it("exposes the session before any component mounts (guard scenario)", async () => {
+    const provider = fakeProvider({
+      authenticated: true,
+      token: "fake-token",
+      user: { name: "Ada Lovelace", roles: ["admin"] },
+    });
+
+    // No mount(): the handle is the imperative path used in route guards /
+    // interceptors, which run before the app renders.
+    const auth = createAuth({ provider });
+    await auth.whenReady();
+
+    expect(auth.isAuthenticated()).toBe(true);
+    expect(auth.isLoading()).toBe(false);
+    expect(auth.getToken()).toBe("fake-token");
+    expect(auth.getUser()?.name).toBe("Ada Lovelace");
+    expect(auth.hasRole("admin")).toBe(true);
+    expect(auth.hasRole("editor")).toBe(false);
+    expect(auth.hasAnyRole(["x", "admin"])).toBe(true);
+    expect(auth.hasAnyRole(["x", "y"])).toBe(false);
+    expect(auth.getError()).toBeNull();
+  });
+
+  it("reports unauthenticated through the handle when init resolves false", async () => {
+    const provider = fakeProvider({ authenticated: false });
+
+    const auth = createAuth({ provider });
+    await auth.whenReady();
+
+    expect(auth.isAuthenticated()).toBe(false);
+    expect(auth.getToken()).toBeNull();
+    expect(auth.getUser()).toBeNull();
+    expect(auth.hasRole("admin")).toBe(false);
+  });
+
+  it("is still a valid Vue plugin: useAuth() inside a mounted component works", async () => {
+    const provider = fakeProvider({
+      authenticated: true,
+      token: "fake-token",
+      user: { name: "Ada Lovelace", roles: ["admin"] },
+    });
+
+    // Build the handle once, install the SAME object as a plugin.
+    const auth = createAuth({ provider });
+
+    const captured: { auth: AuthState | null } = { auth: null };
+    const Harness = defineComponent({
+      setup() {
+        captured.auth = useAuth();
+        return () => null;
+      },
+    });
+
+    mount(Harness, { global: { plugins: [auth] } });
+    await flushPromises();
+    await nextTick();
+    await flushPromises();
+
+    const reactive = captured.auth as AuthState;
+    expect(reactive.isAuthenticated.value).toBe(true);
+    expect(reactive.user.value?.name).toBe("Ada Lovelace");
+    // The imperative handle and the reactive composable observe the same actor.
+    expect(auth.isAuthenticated()).toBe(true);
   });
 });

@@ -20,4 +20,5 @@ export type {
   AuthInitResult,
   LogoutOptions,
   AuthProvider,
+  AuthHandle,
 } from "@ricardoqmd/auth-core";
