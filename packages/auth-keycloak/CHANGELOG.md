@@ -1,5 +1,13 @@
 # @ricardoqmd/auth-keycloak
 
+## 1.0.1
+
+### Patch Changes
+
+- Flush the `@ricardoqmd/auth-core` dependency to a caret range so the package accepts
+  auth-core ^1.x. Prevents a duplicate auth-core when co-installed with auth-vue 0.2.0
+  (which requires auth-core ^1.1.0).
+
 ## 1.0.0
 
 ### Major Changes
