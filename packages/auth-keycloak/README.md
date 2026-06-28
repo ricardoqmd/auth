@@ -47,6 +47,7 @@ createKeycloakProvider({
   onLoad?: "login-required" | "check-sso";  // default: "login-required"
   checkLoginIframe?: boolean;                // default: false
   pkceMethod?: "S256";                       // default: "S256"
+  responseMode?: "fragment" | "query";      // default: keycloak-js default ("fragment")
   silentCheckSsoRedirectUri?: string;
   logoutRedirectUri?: string;
 });
@@ -58,6 +59,13 @@ createKeycloakProvider({
   (`S256`), which browsers expose only in a secure context — HTTPS or
   `localhost`. Served over plain `http://<ip>`, init fails with `INIT_FAILED`
   ("Web Crypto API is not available").
+- **HTML5-history routers and `responseMode`.** keycloak-js defaults to
+  `responseMode: "fragment"`, so the OIDC callback returns in the URL fragment
+  (`#state=...&code=...`). Apps using an HTML5-history router (e.g. vue-router's
+  `createWebHistory`) don't manage the fragment, so it lingers in the address bar
+  after login. Set `responseMode: "query"` to receive the callback as
+  `?code=...` instead — both keycloak-js and HTML5 routers strip query params
+  from the URL reliably. Default behavior is unchanged when the option is omitted.
 - **Silent check-sso and CSP.** Setting `silentCheckSsoRedirectUri` loads Keycloak
   in a hidden iframe; Keycloak's default `frame-ancestors 'self'` CSP blocks that
   cross-origin until you allow the app's origin (Realm Settings → Security

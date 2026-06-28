@@ -94,6 +94,27 @@ describe("createKeycloakProvider", () => {
 
   });
 
+  it("forwards responseMode to kc.init() when provided", () => {
+    const provider = createKeycloakProvider({ ...testConfig, responseMode: "query" });
+    provider.init();
+
+    expect(mockKeycloakInstance.init).toHaveBeenCalledWith({
+      onLoad: 'login-required',
+      checkLoginIframe: false,
+      pkceMethod: 'S256',
+      silentCheckSsoRedirectUri: undefined,
+      responseMode: 'query',
+    });
+  });
+
+  it("omits responseMode from kc.init() when not provided (default preserved)", () => {
+    const provider = createKeycloakProvider(testConfig);
+    provider.init();
+
+    const initOptions = mockKeycloakInstance.init.mock.calls[0][0];
+    expect(initOptions).not.toHaveProperty("responseMode");
+  });
+
   it("init() returns { authenticated: false } when Keycloak reports not authenticated", async () => {
     const provider = createKeycloakProvider(testConfig);
     mockKeycloakInstance.init.mockResolvedValueOnce(false);
