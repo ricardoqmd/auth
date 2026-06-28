@@ -1,5 +1,13 @@
 # @ricardoqmd/auth-keycloak
 
+## 1.0.2
+
+### Patch Changes
+
+- Add optional `responseMode` ("fragment" | "query") forwarded to kc.init() only when
+  set; default unchanged. Lets HTML5-history-router consumers use "query" so the OIDC
+  callback returns as ?code=... instead of #code=..., avoiding the lingering URL fragment.
+
 ## 1.0.1
 
 ### Patch Changes
