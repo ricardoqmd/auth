@@ -61,6 +61,14 @@ export interface KeycloakProviderOptions {
    */
   pkceMethod?: 'S256';
   /**
+   * OIDC response mode forwarded to keycloak-js. Omitted by default, so keycloak-js
+   * uses its own default ("fragment"). Set to "query" when the host app uses an
+   * HTML5-history router (createWebHistory): the callback then returns as ?code=...
+   * instead of #code=..., which both keycloak-js and the router strip from the URL
+   * reliably. With "fragment" + HTML5 history the callback hash can linger after login.
+   */
+  responseMode?: 'fragment' | 'query';
+  /**
    * Default URI to redirect to after logout. Must be an absolute URL registered
    * in the Keycloak client's "Valid post-logout redirect URIs".
    *
@@ -203,6 +211,7 @@ export function createKeycloakProvider(
           checkLoginIframe: options.checkLoginIframe ?? false,
           pkceMethod: options.pkceMethod ?? 'S256',
           silentCheckSsoRedirectUri: options.silentCheckSsoRedirectUri,
+          ...(options.responseMode ? { responseMode: options.responseMode } : {}),
         });
 
         if (!authenticated) {
